@@ -61,7 +61,7 @@ NITRO_PRESET=cloudflare_pages bun run build
 Deploy via the Cloudflare dashboard or Wrangler CLI. The dashboard build command should be:
 
 ```
-NITRO_PRESET=cloudflare_pages bun run build
+bunx wrangler pages deploy
 ```
 
 Build output directory: `dist`
