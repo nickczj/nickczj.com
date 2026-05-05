@@ -42,7 +42,7 @@ describe('homelab pusher parsers', () => {
     expect(temp).toBe(51.5)
   })
 
-  test('maps docker inspect output to service statuses', () => {
+  test('maps docker inspect output to service states', () => {
     const startedAt = new Date(Date.now() - 90_000).toISOString()
     const output = [
       JSON.stringify({ Name: '/traefik', State: { Running: true, StartedAt: startedAt } }),
@@ -51,12 +51,11 @@ describe('homelab pusher parsers', () => {
     ].join('\n')
 
     const services = parseDockerInspect(output, ['traefik', 'grafana', 'jellyfin', 'cf-tunnel'])
-    expect(services.map((service) => [service.name, service.status, service.detail])).toEqual([
-      ['traefik', 'ok', 'up'],
+    expect(services.map((service) => [service.name, service.state, service.detail])).toEqual([
+      ['traefik', 'up', 'up'],
       ['grafana', 'down', 'down'],
-      ['jellyfin', 'warn', 'starting'],
+      ['jellyfin', 'slow', 'starting'],
       ['cf-tunnel', 'down', 'not found']
     ])
-    expect(services[0]?.uptimeSeconds).toBeGreaterThan(0)
   })
 })

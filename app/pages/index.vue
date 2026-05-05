@@ -29,7 +29,7 @@ const NAV = [
 
 type HomelabKpiKey = 'cpu' | 'mem' | 'temp' | 'load'
 type HomelabTone = 'ok' | 'warn' | 'bad'
-type HomelabServiceStatus = 'ok' | 'warn' | 'down'
+type HomelabServiceState = 'up' | 'slow' | 'down'
 type HomelabKpi = {
   key: HomelabKpiKey
   label: string
@@ -40,9 +40,8 @@ type HomelabKpi = {
 }
 type HomelabService = {
   name: string
-  status: HomelabServiceStatus
+  state: HomelabServiceState
   detail: string
-  uptimeSeconds?: number
 }
 type HomelabHistorySample = {
   at: string
@@ -213,7 +212,7 @@ const kpis = computed(() => {
 
 const services = computed(() => homelabData.value?.services ?? DEFAULT_SERVICE_NAMES.map((name) => ({
   name,
-  status: 'warn' as const,
+  state: 'slow' as const,
   detail: 'waiting'
 })))
 
@@ -322,14 +321,14 @@ onBeforeUnmount(() => {
           <div
             v-for="s in services"
             :key="s.name"
-            :class="['svc', s.status === 'warn' ? 'warn' : '', s.status === 'down' ? 'bad' : '']"
+            :class="['svc', s.state === 'slow' ? 'warn' : '', s.state === 'down' ? 'bad' : '']"
           >
             <div class="row gap-8">
               <span class="dot" />
               <span class="name">{{ s.name }}</span>
             </div>
             <span class="stat">
-              {{ s.detail }}<template v-if="s.uptimeSeconds !== undefined"> · {{ formatDuration(s.uptimeSeconds) }}</template>
+              {{ s.detail }}
             </span>
           </div>
         </div>

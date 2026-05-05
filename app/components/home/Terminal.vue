@@ -8,7 +8,7 @@ const props = defineProps<{
   homelabStatus?: {
     data: {
       node: { name: string; uptimeSeconds: number }
-      services: { status: 'ok' | 'warn' | 'down' }[]
+      services: { state: 'up' | 'slow' | 'down' }[]
     } | null
     stale: boolean
     unavailable: boolean
@@ -106,11 +106,11 @@ function formatHomelabUptime() {
   const status = props.homelabStatus
   if (!status?.data || status.unavailable) return 'homelab status unavailable'
 
-  const down = status.data.services.filter(s => s.status === 'down').length
-  const warn = status.data.services.filter(s => s.status === 'warn').length
+  const down = status.data.services.filter(s => s.state === 'down').length
+  const slow = status.data.services.filter(s => s.state === 'slow').length
   const serviceState =
     down > 0 ? `${down} down` :
-    warn > 0 ? `${warn} warn` :
+    slow > 0 ? `${slow} slow` :
     'all services nominal'
   const freshness = status.stale ? 'stale' : 'live'
 

@@ -188,7 +188,7 @@ export function parseDockerInspect(output: string, expectedNames: string[]): Hom
 
   return expectedNames.map((name) => byName.get(name) ?? {
     name,
-    status: 'down',
+    state: 'down',
     detail: 'not found'
   })
 }
@@ -199,13 +199,13 @@ async function inspectDockerService(name: string): Promise<HomelabService> {
       timeout: 3000,
       maxBuffer: 1024 * 1024
     })
-    return parseDockerInspect(stdout, [name])[0] ?? { name, status: 'down', detail: 'not found' }
+    return parseDockerInspect(stdout, [name])[0] ?? { name, state: 'down', detail: 'not found' }
   } catch (error) {
     const stderr = error instanceof Error && 'stderr' in error ? String(error.stderr) : ''
     if (stderr.includes('No such object')) {
-      return { name, status: 'down', detail: 'not found' }
+      return { name, state: 'down', detail: 'not found' }
     }
-    return { name, status: 'warn', detail: 'docker unavailable' }
+    return { name, state: 'slow', detail: 'docker unavailable' }
   }
 }
 
@@ -214,24 +214,20 @@ function serviceFromContainer(name: string, container: Record<string, unknown>):
   const health = isRecord(state.Health) ? state.Health : null
   const running = state.Running === true
   const healthStatus = typeof health?.Status === 'string' ? health.Status : ''
-  const startedAt = typeof state.StartedAt === 'string' ? Date.parse(state.StartedAt) : NaN
-  const uptimeSeconds = running && Number.isFinite(startedAt)
-    ? Math.max(0, Math.floor((Date.now() - startedAt) / 1000))
-    : undefined
 
   if (!running) {
-    return { name, status: 'down', detail: 'down' }
+    return { name, state: 'down', detail: 'down' }
   }
 
   if (healthStatus === 'unhealthy') {
-    return { name, status: 'down', detail: 'unhealthy', ...(uptimeSeconds === undefined ? {} : { uptimeSeconds }) }
+    return { name, state: 'down', detail: 'unhealthy' }
   }
 
   if (healthStatus === 'starting') {
-    return { name, status: 'warn', detail: 'starting', ...(uptimeSeconds === undefined ? {} : { uptimeSeconds }) }
+    return { name, state: 'slow', detail: 'starting' }
   }
 
-  return { name, status: 'ok', detail: 'up', ...(uptimeSeconds === undefined ? {} : { uptimeSeconds }) }
+  return { name, state: 'up', detail: 'up' }
 }
 
 function collectTemperatureReadings(value: unknown, readings: number[]) {

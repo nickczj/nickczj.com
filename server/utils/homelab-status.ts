@@ -1,14 +1,13 @@
-export const HOMELAB_STATUS_TABLE = 'homelab_status_current'
-export const HOMELAB_STATUS_ROW_ID = 1
 export const HOMELAB_STALE_AFTER_MS = 3 * 60 * 1000
-export const HOMELAB_HISTORY_LIMIT = 30
+export const HOMELAB_HISTORY_LIMIT = 60
+export const HOMELAB_RETENTION_SECONDS = 7 * 86400
 
-export const HOMELAB_KPI_KEYS = ['cpu', 'mem', 'temp', 'load'] as const
-export const HOMELAB_SERVICE_STATUSES = ['ok', 'warn', 'down'] as const
+export const HOMELAB_KPI_KEYS = ['cpu', 'mem', 'temp', 'power', 'load'] as const
+export const HOMELAB_SERVICE_STATES = ['up', 'slow', 'down'] as const
 export const HOMELAB_TONES = ['ok', 'warn', 'bad'] as const
 
 export type HomelabKpiKey = typeof HOMELAB_KPI_KEYS[number]
-export type HomelabServiceStatus = typeof HOMELAB_SERVICE_STATUSES[number]
+export type HomelabServiceState = typeof HOMELAB_SERVICE_STATES[number]
 export type HomelabTone = typeof HOMELAB_TONES[number]
 export type HomelabStatusSource = 'd1' | 'memory' | 'none'
 
@@ -23,9 +22,8 @@ export type HomelabKpi = {
 
 export type HomelabService = {
   name: string
-  status: HomelabServiceStatus
+  state: HomelabServiceState
   detail: string
-  uptimeSeconds?: number
 }
 
 export type HomelabStatusPayload = {
@@ -67,21 +65,49 @@ type ValidationResult =
 type D1PreparedStatement = {
   bind: (...values: unknown[]) => D1PreparedStatement
   first: <T = unknown>() => Promise<T | null>
+  all: <T = unknown>() => Promise<{ results?: T[] }>
   run: () => Promise<unknown>
 }
 
 export type HomelabD1Database = {
   prepare: (query: string) => D1PreparedStatement
+  batch?: (statements: D1PreparedStatement[]) => Promise<unknown[]>
 }
 
-type HomelabStatusRow = {
-  payload_json: string
-  history_json: string
-  reported_at: string
-  received_at: string
+export type HomelabMetricRow = {
+  ts: number
+  cpu_pct: number | null
+  mem_pct: number | null
+  temp_c: number | null
+  power_w: number | null
+  load_1m: number | null
+  meta_json: string
 }
 
-let memorySnapshot: HomelabStatusSnapshot | null = null
+export type HomelabServiceRow = {
+  ts: number
+  service: string
+  state: HomelabServiceState
+}
+
+type HomelabMetricRecord = {
+  ts: number
+  cpuPct: number | null
+  memPct: number | null
+  tempC: number | null
+  powerW: number | null
+  load1m: number | null
+  metaJson: string
+}
+
+type HomelabServiceRecord = {
+  ts: number
+  service: string
+  state: HomelabServiceState
+}
+
+let memoryMetrics: HomelabMetricRecord[] = []
+let memoryServices: HomelabServiceRecord[] = []
 
 export function validateHomelabPayload(input: unknown): ValidationResult {
   if (!isRecord(input)) return invalid('payload must be an object')
@@ -131,19 +157,14 @@ export function validateHomelabPayload(input: unknown): ValidationResult {
     if (!name) return invalid('service.name is required')
     if (seenServices.has(name)) return invalid(`duplicate service name: ${name}`)
     seenServices.add(name)
-    if (!isHomelabServiceStatus(rawService.status)) return invalid(`service ${name} status is invalid`)
 
-    const detail = cleanString(rawService.detail, 80) || statusDetail(rawService.status)
-    const uptime = rawService.uptimeSeconds === undefined
-      ? undefined
-      : cleanNonNegativeNumber(rawService.uptimeSeconds)
-    if (uptime === null) return invalid(`service ${name} uptimeSeconds must be non-negative`)
+    const state = cleanServiceState(rawService.state ?? rawService.status)
+    if (!state) return invalid(`service ${name} state is invalid`)
 
     services.push({
       name,
-      status: rawService.status,
-      detail,
-      ...(uptime === undefined ? {} : { uptimeSeconds: uptime })
+      state,
+      detail: cleanString(rawService.detail, 80) || serviceDetail(state)
     })
   }
 
@@ -158,18 +179,138 @@ export function validateHomelabPayload(input: unknown): ValidationResult {
   }
 }
 
-export function appendHistorySample(
-  history: HomelabHistorySample[],
+export function metricRowFromPayload(payload: HomelabStatusPayload, ts: number): HomelabMetricRecord {
+  return {
+    ts,
+    cpuPct: kpiValue(payload, 'cpu'),
+    memPct: kpiValue(payload, 'mem'),
+    tempC: kpiValue(payload, 'temp'),
+    powerW: kpiValue(payload, 'power'),
+    load1m: kpiValue(payload, 'load'),
+    metaJson: JSON.stringify({
+      version: payload.version,
+      node: payload.node,
+      kpis: payload.kpis.map(({ key, label, unit, window, tone }) => ({ key, label, unit, window, tone })),
+      services: payload.services.map(({ name, detail }) => ({ name, detail }))
+    })
+  }
+}
+
+export function serviceRowsFromPayload(payload: HomelabStatusPayload, ts: number): HomelabServiceRecord[] {
+  return payload.services.map((service) => ({
+    ts,
+    service: service.name,
+    state: service.state
+  }))
+}
+
+export async function readHomelabSnapshotFromD1(db: HomelabD1Database) {
+  const metricRows = await db
+    .prepare(
+      `SELECT ts, cpu_pct, mem_pct, temp_c, power_w, load_1m, meta_json
+       FROM metrics
+       ORDER BY ts DESC
+       LIMIT ?1`
+    )
+    .bind(HOMELAB_HISTORY_LIMIT)
+    .all<HomelabMetricRow>()
+
+  const metrics = (metricRows.results ?? []).map(metricRecordFromD1Row)
+  if (!metrics.length) return null
+
+  const serviceRows = await db
+    .prepare(
+      `SELECT s.ts, s.service, s.state
+       FROM service_status s
+       JOIN (
+        SELECT service, MAX(ts) AS ts
+        FROM service_status
+        GROUP BY service
+       ) latest ON latest.service = s.service AND latest.ts = s.ts
+       ORDER BY s.service ASC`
+    )
+    .all<HomelabServiceRow>()
+
+  return snapshotFromRows(metrics, (serviceRows.results ?? []).map(serviceRecordFromD1Row))
+}
+
+export async function writeHomelabSnapshotToD1(
+  db: HomelabD1Database,
   payload: HomelabStatusPayload,
-  at: string,
-  limit = HOMELAB_HISTORY_LIMIT
+  receivedAt = new Date()
 ) {
-  const kpis: HomelabHistorySample['kpis'] = {}
-  for (const kpi of payload.kpis) {
-    kpis[kpi.key] = kpi.value
+  const ts = Math.floor(receivedAt.getTime() / 1000)
+  const metric = metricRowFromPayload(payload, ts)
+  const services = serviceRowsFromPayload(payload, ts)
+
+  const statements = [
+    db.prepare(
+      `INSERT INTO metrics (ts, cpu_pct, mem_pct, temp_c, power_w, load_1m, meta_json)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+       ON CONFLICT(ts) DO UPDATE SET
+        cpu_pct = excluded.cpu_pct,
+        mem_pct = excluded.mem_pct,
+        temp_c = excluded.temp_c,
+        power_w = excluded.power_w,
+        load_1m = excluded.load_1m,
+        meta_json = excluded.meta_json`
+    ).bind(metric.ts, metric.cpuPct, metric.memPct, metric.tempC, metric.powerW, metric.load1m, metric.metaJson),
+    ...services.map((service) =>
+      db.prepare(
+        `INSERT INTO service_status (ts, service, state)
+         VALUES (?1, ?2, ?3)
+         ON CONFLICT(ts, service) DO UPDATE SET state = excluded.state`
+      ).bind(service.ts, service.service, service.state)
+    )
+  ]
+
+  if (db.batch) {
+    await db.batch(statements)
+  } else {
+    await Promise.all(statements.map((statement) => statement.run()))
   }
 
-  return [...history, { at, kpis }].slice(-limit)
+  await pruneHomelabRowsFromD1(db, ts - HOMELAB_RETENTION_SECONDS)
+
+  const snapshot = snapshotFromRows([metric], services)
+  if (!snapshot) throw new Error('failed to build homelab snapshot after write')
+  return snapshot
+}
+
+export async function pruneHomelabRowsFromD1(db: HomelabD1Database, olderThanTs: number) {
+  await Promise.all([
+    db.prepare('DELETE FROM metrics WHERE ts < ?1').bind(olderThanTs).run(),
+    db.prepare('DELETE FROM service_status WHERE ts < ?1').bind(olderThanTs).run()
+  ])
+}
+
+export function readHomelabSnapshotFromMemory() {
+  const metrics = [...memoryMetrics]
+    .sort((a, b) => b.ts - a.ts)
+    .slice(0, HOMELAB_HISTORY_LIMIT)
+  return snapshotFromRows(metrics, currentMemoryServices())
+}
+
+export function writeHomelabSnapshotToMemory(payload: HomelabStatusPayload, receivedAt = new Date()) {
+  const ts = Math.floor(receivedAt.getTime() / 1000)
+  memoryMetrics = upsertBy(memoryMetrics, metricRowFromPayload(payload, ts), (row) => String(row.ts))
+  const nextServices = serviceRowsFromPayload(payload, ts)
+  for (const service of nextServices) {
+    memoryServices = upsertBy(memoryServices, service, (row) => `${row.ts}:${row.service}`)
+  }
+
+  const cutoff = ts - HOMELAB_RETENTION_SECONDS
+  memoryMetrics = memoryMetrics.filter((row) => row.ts >= cutoff)
+  memoryServices = memoryServices.filter((row) => row.ts >= cutoff)
+
+  const snapshot = snapshotFromRows([metricRowFromPayload(payload, ts)], nextServices)
+  if (!snapshot) throw new Error('failed to build memory homelab snapshot after write')
+  return snapshot
+}
+
+export function resetHomelabMemorySnapshot() {
+  memoryMetrics = []
+  memoryServices = []
 }
 
 export function buildHomelabResponse(
@@ -190,80 +331,17 @@ export function buildHomelabResponse(
     }
   }
 
-  const updatedAt = snapshot.reportedAt || snapshot.receivedAt
-  const stale = now.getTime() - Date.parse(updatedAt) > HOMELAB_STALE_AFTER_MS
+  const stale = now.getTime() - Date.parse(snapshot.reportedAt) > HOMELAB_STALE_AFTER_MS
 
   return {
     data: snapshot.data,
     history: snapshot.history,
-    updatedAt,
+    updatedAt: snapshot.reportedAt,
     fetchedAt,
     stale,
     unavailable: false,
     source
   }
-}
-
-export async function readHomelabSnapshotFromD1(db: HomelabD1Database) {
-  const row = await db
-    .prepare(`SELECT payload_json, history_json, reported_at, received_at FROM ${HOMELAB_STATUS_TABLE} WHERE id = ?1`)
-    .bind(HOMELAB_STATUS_ROW_ID)
-    .first<HomelabStatusRow>()
-
-  if (!row) return null
-
-  return rowToSnapshot(row)
-}
-
-export async function writeHomelabSnapshotToD1(
-  db: HomelabD1Database,
-  payload: HomelabStatusPayload,
-  receivedAt = new Date()
-) {
-  const existing = await readHomelabSnapshotFromD1(db)
-  const receivedAtIso = receivedAt.toISOString()
-  const reportedAt = receivedAtIso
-  const history = appendHistorySample(existing?.history ?? [], payload, reportedAt)
-
-  await db
-    .prepare(
-      `INSERT INTO ${HOMELAB_STATUS_TABLE}
-        (id, version, payload_json, history_json, reported_at, received_at)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-       ON CONFLICT(id) DO UPDATE SET
-        version = excluded.version,
-        payload_json = excluded.payload_json,
-        history_json = excluded.history_json,
-        reported_at = excluded.reported_at,
-        received_at = excluded.received_at`
-    )
-    .bind(
-      HOMELAB_STATUS_ROW_ID,
-      payload.version,
-      JSON.stringify(payload),
-      JSON.stringify(history),
-      reportedAt,
-      receivedAtIso
-    )
-    .run()
-
-  return { data: payload, history, reportedAt, receivedAt: receivedAtIso } satisfies HomelabStatusSnapshot
-}
-
-export function readHomelabSnapshotFromMemory() {
-  return memorySnapshot
-}
-
-export function writeHomelabSnapshotToMemory(payload: HomelabStatusPayload, receivedAt = new Date()) {
-  const receivedAtIso = receivedAt.toISOString()
-  const reportedAt = receivedAtIso
-  const history = appendHistorySample(memorySnapshot?.history ?? [], payload, reportedAt)
-  memorySnapshot = { data: payload, history, reportedAt, receivedAt: receivedAtIso }
-  return memorySnapshot
-}
-
-export function resetHomelabMemorySnapshot() {
-  memorySnapshot = null
 }
 
 export function formatDuration(seconds: number | undefined) {
@@ -279,45 +357,168 @@ export function formatDuration(seconds: number | undefined) {
   return `${minutes}m`
 }
 
-function rowToSnapshot(row: HomelabStatusRow): HomelabStatusSnapshot | null {
-  try {
-    const parsedPayload = validateHomelabPayload(JSON.parse(row.payload_json))
-    if (!parsedPayload.ok) return null
+function snapshotFromRows(metricsDesc: HomelabMetricRecord[], serviceRows: HomelabServiceRecord[]): HomelabStatusSnapshot | null {
+  const latest = metricsDesc[0]
+  if (!latest) return null
 
-    const parsedHistory = JSON.parse(row.history_json)
-    const history = sanitizeHistory(parsedHistory)
+  const meta = parseMetricMeta(latest.metaJson)
+  const reportedAt = isoFromTs(latest.ts)
+  const services = serviceRows
+    .sort((a, b) => a.service.localeCompare(b.service))
+    .map((row): HomelabService => ({
+      name: row.service,
+      state: row.state,
+      detail: meta.serviceDetails.get(row.service) ?? serviceDetail(row.state)
+    }))
 
-    return {
-      data: parsedPayload.value,
-      history,
-      reportedAt: row.reported_at,
-      receivedAt: row.received_at
-    }
-  } catch {
-    return null
+  return {
+    data: {
+      version: 1,
+      node: meta.node,
+      kpis: kpisFromMetric(latest, meta),
+      services
+    },
+    history: [...metricsDesc].reverse().map(historySampleFromMetric),
+    reportedAt,
+    receivedAt: reportedAt
   }
 }
 
-function sanitizeHistory(input: unknown): HomelabHistorySample[] {
-  if (!Array.isArray(input)) return []
+function kpisFromMetric(metric: HomelabMetricRecord, meta: MetricMeta): HomelabKpi[] {
+  const labels = meta.kpiMeta
+  return [
+    kpiFromValue('cpu', metric.cpuPct, labels),
+    kpiFromValue('mem', metric.memPct, labels),
+    kpiFromValue('temp', metric.tempC, labels),
+    kpiFromValue('load', metric.load1m, labels)
+  ]
+}
 
-  return input.flatMap((sample): HomelabHistorySample[] => {
-    if (!isRecord(sample)) return []
-    const at = cleanString(sample.at, 32)
-    if (!at || Number.isNaN(Date.parse(at)) || !isRecord(sample.kpis)) return []
+function kpiFromValue(key: HomelabKpiKey, value: number | null, labels: Map<HomelabKpiKey, Partial<HomelabKpi>>): HomelabKpi {
+  const meta = labels.get(key)
+  return {
+    key,
+    label: meta?.label ?? key,
+    unit: meta?.unit ?? defaultKpiUnit(key),
+    value,
+    window: meta?.window ?? '1m',
+    tone: meta?.tone ?? toneForKpi(key, value)
+  }
+}
 
-    const kpis: HomelabHistorySample['kpis'] = {}
-    for (const key of HOMELAB_KPI_KEYS) {
-      const value = sample.kpis[key]
-      if (value === null || value === undefined) {
-        kpis[key] = null
-      } else if (typeof value === 'number' && Number.isFinite(value)) {
-        kpis[key] = value
+function historySampleFromMetric(metric: HomelabMetricRecord): HomelabHistorySample {
+  return {
+    at: isoFromTs(metric.ts),
+    kpis: {
+      cpu: metric.cpuPct,
+      mem: metric.memPct,
+      temp: metric.tempC,
+      power: metric.powerW,
+      load: metric.load1m
+    }
+  }
+}
+
+type MetricMeta = {
+  node: HomelabStatusPayload['node']
+  kpiMeta: Map<HomelabKpiKey, Partial<HomelabKpi>>
+  serviceDetails: Map<string, string>
+}
+
+function parseMetricMeta(value: string): MetricMeta {
+  const fallback: MetricMeta = {
+    node: { name: 'homelab', uptimeSeconds: 0 },
+    kpiMeta: new Map(),
+    serviceDetails: new Map()
+  }
+
+  try {
+    const parsed = JSON.parse(value)
+    if (!isRecord(parsed)) return fallback
+
+    if (isRecord(parsed.node)) {
+      const name = cleanString(parsed.node.name, 64)
+      const uptimeSeconds = cleanNonNegativeNumber(parsed.node.uptimeSeconds)
+      fallback.node = {
+        name: name || fallback.node.name,
+        uptimeSeconds: uptimeSeconds ?? fallback.node.uptimeSeconds
       }
     }
 
-    return [{ at, kpis }]
-  }).slice(-HOMELAB_HISTORY_LIMIT)
+    if (Array.isArray(parsed.kpis)) {
+      for (const rawKpi of parsed.kpis) {
+        if (!isRecord(rawKpi) || !isHomelabKpiKey(rawKpi.key)) continue
+        fallback.kpiMeta.set(rawKpi.key, {
+          label: cleanString(rawKpi.label, 24) || rawKpi.key,
+          unit: cleanString(rawKpi.unit, 8),
+          window: cleanString(rawKpi.window, 16) || '1m',
+          tone: isHomelabTone(rawKpi.tone) ? rawKpi.tone : undefined
+        })
+      }
+    }
+
+    if (Array.isArray(parsed.services)) {
+      for (const rawService of parsed.services) {
+        if (!isRecord(rawService)) continue
+        const name = cleanString(rawService.name, 48)
+        const detail = cleanString(rawService.detail, 80)
+        if (name && detail) fallback.serviceDetails.set(name, detail)
+      }
+    }
+
+    return fallback
+  } catch {
+    return fallback
+  }
+}
+
+function metricRecordFromD1Row(row: HomelabMetricRow): HomelabMetricRecord {
+  return {
+    ts: row.ts,
+    cpuPct: cleanNullableNumber(row.cpu_pct),
+    memPct: cleanNullableNumber(row.mem_pct),
+    tempC: cleanNullableNumber(row.temp_c),
+    powerW: cleanNullableNumber(row.power_w),
+    load1m: cleanNullableNumber(row.load_1m),
+    metaJson: row.meta_json || '{}'
+  }
+}
+
+function serviceRecordFromD1Row(row: HomelabServiceRow): HomelabServiceRecord {
+  return {
+    ts: row.ts,
+    service: row.service,
+    state: cleanServiceState(row.state) ?? 'down'
+  }
+}
+
+function currentMemoryServices() {
+  const latest = new Map<string, HomelabServiceRecord>()
+  for (const row of memoryServices) {
+    const current = latest.get(row.service)
+    if (!current || row.ts > current.ts) latest.set(row.service, row)
+  }
+  return [...latest.values()]
+}
+
+function upsertBy<T>(rows: T[], row: T, keyFn: (row: T) => string) {
+  const key = keyFn(row)
+  return [...rows.filter((item) => keyFn(item) !== key), row]
+}
+
+function kpiValue(payload: HomelabStatusPayload, key: HomelabKpiKey) {
+  return cleanNullableNumber(payload.kpis.find((kpi) => kpi.key === key)?.value)
+}
+
+function isoFromTs(ts: number) {
+  return new Date(ts * 1000).toISOString()
+}
+
+function defaultKpiUnit(key: HomelabKpiKey) {
+  if (key === 'cpu' || key === 'mem') return '%'
+  if (key === 'temp') return 'C'
+  if (key === 'power') return 'W'
+  return ''
 }
 
 function toneForKpi(key: HomelabKpiKey, value: number | null): HomelabTone {
@@ -337,10 +538,17 @@ function toneForKpi(key: HomelabKpiKey, value: number | null): HomelabTone {
   return 'ok'
 }
 
-function statusDetail(status: HomelabServiceStatus) {
-  if (status === 'down') return 'down'
-  if (status === 'warn') return 'warn'
+function serviceDetail(state: HomelabServiceState) {
+  if (state === 'down') return 'down'
+  if (state === 'slow') return 'slow'
   return 'up'
+}
+
+function cleanServiceState(value: unknown): HomelabServiceState | null {
+  if (value === 'ok') return 'up'
+  if (value === 'warn') return 'slow'
+  if (typeof value !== 'string') return null
+  return (HOMELAB_SERVICE_STATES as readonly string[]).includes(value) ? value as HomelabServiceState : null
 }
 
 function cleanString(value: unknown, maxLength: number) {
@@ -351,6 +559,10 @@ function cleanString(value: unknown, maxLength: number) {
 function cleanFiniteNumber(value: unknown) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return null
   return Math.round(value * 100) / 100
+}
+
+function cleanNullableNumber(value: unknown) {
+  return value === null || value === undefined ? null : cleanFiniteNumber(value)
 }
 
 function cleanNonNegativeNumber(value: unknown) {
@@ -365,10 +577,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isHomelabKpiKey(value: unknown): value is HomelabKpiKey {
   return typeof value === 'string' && (HOMELAB_KPI_KEYS as readonly string[]).includes(value)
-}
-
-function isHomelabServiceStatus(value: unknown): value is HomelabServiceStatus {
-  return typeof value === 'string' && (HOMELAB_SERVICE_STATUSES as readonly string[]).includes(value)
 }
 
 function isHomelabTone(value: unknown): value is HomelabTone {
