@@ -6,6 +6,7 @@
       <nav class="site-nav" aria-label="Primary navigation">
         <NuxtLink to="/blog">Blog</NuxtLink>
         <NuxtLink to="/now">Now</NuxtLink>
+        <NuxtLink to="/uses">Uses</NuxtLink>
         <a href="https://cv.nickczj.com">CV</a>
       </nav>
     </header>
@@ -13,6 +14,10 @@
     <main class="site-main">
       <NuxtPage />
     </main>
+
+    <footer class="site-footer">
+      <NuxtLink to="/colophon">Colophon</NuxtLink>
+    </footer>
   </div>
 </template>
 
@@ -84,6 +89,24 @@ a:hover {
   width: min(100% - 2rem, 56rem);
   margin: 0 auto;
   padding: 3rem 0 5rem;
+}
+
+.site-footer {
+  width: min(100% - 2rem, 56rem);
+  margin: 0 auto;
+  padding: 1.5rem 0 2.5rem;
+  border-top: 1px solid rgba(38, 48, 44, 0.12);
+  font-size: 0.85rem;
+  color: #6d766f;
+}
+
+.site-footer a {
+  color: #6d766f;
+  text-decoration: none;
+}
+
+.site-footer a:hover {
+  color: #145b63;
 }
 
 .page {

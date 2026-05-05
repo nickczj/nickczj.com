@@ -33,6 +33,15 @@ export default defineContentConfig({
         { columns: ['date'] },
         { columns: ['draft'] }
       ]
+    }),
+    pages: defineCollection({
+      type: 'page',
+      source: 'pages/*.md',
+      schema: z.object({
+        title: z.string(),
+        description: z.string(),
+        updated: dateSchema
+      })
     })
   }
 })
