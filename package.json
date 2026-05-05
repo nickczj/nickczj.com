@@ -9,7 +9,8 @@
     "homelab:push": "bun run scripts/push-homelab-status.ts",
     "preview": "nuxt preview",
     "test": "bun test",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "deploy": "NITRO_PRESET=cloudflare_pages bun run build && bunx wrangler pages deploy"
   },
   "dependencies": {
     "@nuxt/content": "^3.13.0",

@@ -271,6 +271,7 @@ onBeforeUnmount(() => {
         <HomePill><span class="tnum">{{ clock }}</span> sgt</HomePill>
         <HomePill :tone="homelabPillTone">{{ homelabUptime }}</HomePill>
         <HomePill>v2026.1</HomePill>
+        <ThemeToggle />
       </div>
     </header>
 
