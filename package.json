@@ -6,7 +6,9 @@
     "build": "nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
+    "homelab:push": "bun run scripts/push-homelab-status.ts",
     "preview": "nuxt preview",
+    "test": "bun test",
     "postinstall": "nuxt prepare"
   },
   "dependencies": {

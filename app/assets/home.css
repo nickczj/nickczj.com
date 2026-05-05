@@ -226,6 +226,7 @@
 .home-shell .kpi-value .unit { font-size: 13px; color: var(--ink-3); margin-left: 1px; font-weight: 500; }
 .home-shell .kpi-spark { margin-top: 8px; height: 22px; }
 .home-shell .kpi.warn .kpi-value { color: var(--warn); }
+.home-shell .kpi.bad .kpi-value { color: var(--bad); }
 
 /* services list */
 .home-shell .svc-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -242,6 +243,8 @@
 .home-shell .svc .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-2); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-2) 18%, transparent); }
 .home-shell .svc.warn .dot { background: var(--warn); box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 18%, transparent); }
 .home-shell .svc.warn .stat { color: var(--warn); }
+.home-shell .svc.bad .dot { background: var(--bad); box-shadow: 0 0 0 3px color-mix(in srgb, var(--bad) 18%, transparent); }
+.home-shell .svc.bad .stat { color: var(--bad); }
 
 /* /now & about */
 .home-shell .tile {

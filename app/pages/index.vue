@@ -27,21 +27,56 @@ const NAV = [
   { label: 'colophon',  href: '/colophon' }
 ]
 
-type Kpi = { k: string; unit: string; seed: number; base: number; swing: number; warn?: boolean }
-const KPIS: Kpi[] = [
-  { k: 'cpu',   unit: '%',  seed: 11, base: 22, swing: 8 },
-  { k: 'mem',   unit: '%',  seed: 22, base: 60, swing: 4 },
-  { k: 'temp',  unit: '°C', seed: 33, base: 41, swing: 3, warn: true },
-  { k: 'power', unit: 'W',  seed: 44, base: 72, swing: 6 }
+type HomelabKpiKey = 'cpu' | 'mem' | 'temp' | 'load'
+type HomelabTone = 'ok' | 'warn' | 'bad'
+type HomelabServiceStatus = 'ok' | 'warn' | 'down'
+type HomelabKpi = {
+  key: HomelabKpiKey
+  label: string
+  unit: string
+  value: number | null
+  window: string
+  tone: HomelabTone
+}
+type HomelabService = {
+  name: string
+  status: HomelabServiceStatus
+  detail: string
+  uptimeSeconds?: number
+}
+type HomelabHistorySample = {
+  at: string
+  kpis: Partial<Record<HomelabKpiKey, number | null>>
+}
+type HomelabStatusResponse = {
+  data: {
+    version: 1
+    node: { name: string; uptimeSeconds: number }
+    kpis: HomelabKpi[]
+    services: HomelabService[]
+  } | null
+  history: HomelabHistorySample[]
+  updatedAt: string | null
+  fetchedAt: string
+  stale: boolean
+  unavailable: boolean
+  source: 'd1' | 'memory' | 'none'
+}
+
+const DEFAULT_KPIS: HomelabKpi[] = [
+  { key: 'cpu',  label: 'cpu',  unit: '%', value: null, window: '1m', tone: 'warn' },
+  { key: 'mem',  label: 'mem',  unit: '%', value: null, window: '1m', tone: 'warn' },
+  { key: 'temp', label: 'temp', unit: 'C', value: null, window: '1m', tone: 'warn' },
+  { key: 'load', label: 'load', unit: '',  value: null, window: '1m', tone: 'warn' }
 ]
 
-const SERVICES: { name: string; status: 'ok' | 'warn'; uptime: string }[] = [
-  { name: 'traefik',        status: 'ok',   uptime: '47d' },
-  { name: 'grafana',        status: 'ok',   uptime: '47d' },
-  { name: 'home-assistant', status: 'ok',   uptime: '47d' },
-  { name: 'jellyfin',       status: 'warn', uptime: '14d' },
-  { name: 'vesto-dev',      status: 'ok',   uptime: '02d' },
-  { name: 'cf-tunnel',      status: 'ok',   uptime: '47d' }
+const DEFAULT_SERVICE_NAMES = [
+  'traefik',
+  'grafana',
+  'home-assistant',
+  'jellyfin',
+  'vesto-dev',
+  'cf-tunnel'
 ]
 
 const PROJECTS = [
@@ -94,11 +129,27 @@ const nowMonthLabel = computed(() => {
   return monthFormatter.format(new Date(`${nowEntry.value.date}T00:00:00.000Z`)).toLowerCase()
 })
 
+// Homelab status (live data when the D1-backed API has a recent push).
+const emptyHomelabStatus = (): HomelabStatusResponse => ({
+  data: null,
+  history: [],
+  updatedAt: null,
+  fetchedAt: new Date(0).toISOString(),
+  stale: true,
+  unavailable: true,
+  source: 'none'
+})
+
+const { data: homelabStatus, refresh: refreshHomelabStatus } = await useFetch<HomelabStatusResponse>('/api/status', {
+  default: emptyHomelabStatus
+})
+
 // Live tick + clock — initialised on mount only to avoid hydration mismatch.
 const tick = ref(0)
 const clock = ref('--:--')
 const mounted = ref(false)
 let timer: ReturnType<typeof setInterval> | null = null
+let homelabTimer: ReturnType<typeof setInterval> | null = null
 
 function pad2(n: number) { return n < 10 ? '0' + n : '' + n }
 function formatNow() {
@@ -106,23 +157,65 @@ function formatNow() {
   return pad2(d.getHours()) + ':' + pad2(d.getMinutes())
 }
 
-// Deterministic drift for KPI values.
-function mulberry32(a: number) {
-  return function () {
-    a |= 0; a = (a + 0x6D2B79F5) | 0
-    let t = a
-    t = Math.imul(t ^ (t >>> 15), t | 1)
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
+function formatDuration(seconds: number | undefined) {
+  if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 0) return 'unknown'
+  const whole = Math.floor(seconds)
+  const days = Math.floor(whole / 86400)
+  const hours = Math.floor((whole % 86400) / 3600)
+  const minutes = Math.floor((whole % 3600) / 60)
+  if (days > 0) return `${days}d ${String(hours).padStart(2, '0')}h`
+  if (hours > 0) return `${hours}h ${String(minutes).padStart(2, '0')}m`
+  return `${minutes}m`
 }
 
-const kpis = computed(() => KPIS.map(k => {
-  const r = mulberry32(k.seed + tick.value)
-  const drift = (r() - 0.5) * k.swing
-  const v = Math.max(0, Math.round(k.base + drift))
-  return { ...k, v }
-}))
+function timeAgo(value: string | null) {
+  if (!value) return 'never'
+  const ageMs = Date.now() - Date.parse(value)
+  if (!Number.isFinite(ageMs) || ageMs < 0) return 'now'
+  const seconds = Math.floor(ageMs / 1000)
+  if (seconds < 60) return `${seconds}s ago`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 48) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
+}
+
+function formatKpiValue(value: number | null) {
+  if (value === null) return '--'
+  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.?0+$/, '')
+}
+
+const homelabData = computed(() => homelabStatus.value?.data ?? null)
+const homelabHistory = computed(() => homelabStatus.value?.history ?? [])
+const homelabUnavailable = computed(() => homelabStatus.value?.unavailable ?? true)
+const homelabStale = computed(() => homelabStatus.value?.stale ?? true)
+const homelabPillTone = computed(() => homelabUnavailable.value ? 'bad' : homelabStale.value ? 'warn' : 'ok')
+const homelabUptime = computed(() =>
+  homelabData.value ? `homelab ${formatDuration(homelabData.value.node.uptimeSeconds)}` : 'homelab n/a'
+)
+const homelabMeta = computed(() => {
+  tick.value
+  if (homelabUnavailable.value) return 'unavailable · no data'
+  const prefix = homelabStale.value ? 'stale' : 'live'
+  return `${prefix} · updated ${timeAgo(homelabStatus.value?.updatedAt ?? null)}`
+})
+
+const kpis = computed(() => {
+  const source = homelabData.value?.kpis?.length ? homelabData.value.kpis : DEFAULT_KPIS
+  return source.map((kpi) => ({
+    ...kpi,
+    values: homelabHistory.value
+      .map((sample) => sample.kpis[kpi.key])
+      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
+  }))
+})
+
+const services = computed(() => homelabData.value?.services ?? DEFAULT_SERVICE_NAMES.map((name) => ({
+  name,
+  status: 'warn' as const,
+  detail: 'waiting'
+})))
 
 // Terminal palette
 const termOpen = ref(false)
@@ -149,11 +242,16 @@ onMounted(() => {
     tick.value++
     clock.value = formatNow()
   }, 2000)
+  refreshHomelabStatus()
+  homelabTimer = setInterval(() => {
+    refreshHomelabStatus()
+  }, 30000)
   window.addEventListener('keydown', onKey)
 })
 
 onBeforeUnmount(() => {
   if (timer) clearInterval(timer)
+  if (homelabTimer) clearInterval(homelabTimer)
   if (typeof window !== 'undefined') window.removeEventListener('keydown', onKey)
 })
 </script>
@@ -172,7 +270,7 @@ onBeforeUnmount(() => {
       <div class="row gap-6 wrap" style="justify-content: flex-end;">
         <HomePill tone="ok" :dot="true">online</HomePill>
         <HomePill><span class="tnum">{{ clock }}</span> sgt</HomePill>
-        <HomePill>uptime 47d</HomePill>
+        <HomePill :tone="homelabPillTone">{{ homelabUptime }}</HomePill>
         <HomePill>v2026.1</HomePill>
       </div>
     </header>
@@ -198,40 +296,40 @@ onBeforeUnmount(() => {
       <section class="card">
         <div class="card-h">
           <div class="card-title"><span class="dot" /> homelab.status</div>
-          <div class="card-meta">demo · last poll {{ 1 + (tick % 12) }}s</div>
+          <div class="card-meta">{{ homelabMeta }}</div>
         </div>
 
         <div class="kpi-grid">
           <div
             v-for="k in kpis"
-            :key="k.k"
-            :class="['kpi', k.warn ? 'warn' : '']"
+            :key="k.key"
+            :class="['kpi', k.tone === 'warn' ? 'warn' : '', k.tone === 'bad' ? 'bad' : '']"
           >
             <div class="kpi-label">
-              <span>{{ k.k }}</span>
-              <span class="dim3">1m</span>
+              <span>{{ k.label }}</span>
+              <span class="dim3">{{ k.window }}</span>
             </div>
             <div class="kpi-value tnum">
-              {{ k.v }}<span class="unit">{{ k.unit }}</span>
+              {{ formatKpiValue(k.value) }}<span v-if="k.value !== null && k.unit" class="unit">{{ k.unit }}</span>
             </div>
             <div class="kpi-spark">
-              <HomeSpark :seed="k.seed" :h="22" :tone="k.warn ? 'warn' : ''" :tick="tick" />
+              <HomeSpark :seed="k.key.length * 11" :h="22" :tone="k.tone === 'ok' ? '' : k.tone" :tick="tick" :values="k.values" />
             </div>
           </div>
         </div>
 
         <div class="svc-list">
           <div
-            v-for="s in SERVICES"
+            v-for="s in services"
             :key="s.name"
-            :class="['svc', s.status === 'warn' ? 'warn' : '']"
+            :class="['svc', s.status === 'warn' ? 'warn' : '', s.status === 'down' ? 'bad' : '']"
           >
             <div class="row gap-8">
               <span class="dot" />
               <span class="name">{{ s.name }}</span>
             </div>
             <span class="stat">
-              {{ s.status === 'warn' ? 'p95 slow' : 'up' }} · {{ s.uptime }}
+              {{ s.detail }}<template v-if="s.uptimeSeconds !== undefined"> · {{ formatDuration(s.uptimeSeconds) }}</template>
             </span>
           </div>
         </div>
@@ -401,6 +499,7 @@ onBeforeUnmount(() => {
       :open="termOpen"
       :nav="NAV"
       :yields="yieldsForTerm"
+      :homelab-status="homelabStatus"
       @close="termOpen = false"
     />
   </div>

@@ -5,6 +5,15 @@ const props = defineProps<{
   open: boolean
   nav: { label: string; href: string }[]
   yields: { name: string; val: string }[]
+  homelabStatus?: {
+    data: {
+      node: { name: string; uptimeSeconds: number }
+      services: { status: 'ok' | 'warn' | 'down' }[]
+    } | null
+    stale: boolean
+    unavailable: boolean
+    updatedAt: string | null
+  } | null
 }>()
 
 const emit = defineEmits<{
@@ -44,7 +53,7 @@ function run(raw: string) {
         '  cd <page>   navigate',
         '  whoami      print bio',
         '  cv          open cv.nickczj.com',
-        '  uptime      site uptime (demo)',
+        '  uptime      homelab uptime',
         '  yields      sg yields snapshot',
         '  clear       clear screen'
       ].join('\n')
@@ -72,7 +81,7 @@ function run(raw: string) {
       out = 'opening cv.nickczj.com…'
       break
     case 'uptime':
-      out = '47d 04h · all services nominal (jellyfin: p95 slow)'
+      out = formatHomelabUptime()
       break
     case 'yields':
       out = props.yields.map(y => `${y.name.padEnd(12)} ${y.val}`).join('\n')
@@ -91,6 +100,32 @@ function run(raw: string) {
   next.push({ type: 'out', text: out })
   lines.value = next
   val.value = ''
+}
+
+function formatHomelabUptime() {
+  const status = props.homelabStatus
+  if (!status?.data || status.unavailable) return 'homelab status unavailable'
+
+  const down = status.data.services.filter(s => s.status === 'down').length
+  const warn = status.data.services.filter(s => s.status === 'warn').length
+  const serviceState =
+    down > 0 ? `${down} down` :
+    warn > 0 ? `${warn} warn` :
+    'all services nominal'
+  const freshness = status.stale ? 'stale' : 'live'
+
+  return `${status.data.node.name} ${formatDuration(status.data.node.uptimeSeconds)} · ${serviceState} · ${freshness}`
+}
+
+function formatDuration(seconds: number | undefined) {
+  if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 0) return 'unknown'
+  const whole = Math.floor(seconds)
+  const days = Math.floor(whole / 86400)
+  const hours = Math.floor((whole % 86400) / 3600)
+  const minutes = Math.floor((whole % 3600) / 60)
+  if (days > 0) return `${days}d ${String(hours).padStart(2, '0')}h`
+  if (hours > 0) return `${hours}h ${String(minutes).padStart(2, '0')}m`
+  return `${minutes}m`
 }
 
 function onKey(e: KeyboardEvent) {

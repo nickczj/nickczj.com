@@ -7,12 +7,14 @@ const props = withDefaults(defineProps<{
   h?: number
   tone?: '' | 'warn' | 'bad'
   tick?: number
+  values?: number[]
 }>(), {
   seed: 1,
   w: 120,
   h: 22,
   tone: '',
-  tick: 0
+  tick: 0,
+  values: undefined
 })
 
 function mulberry32(a: number) {
@@ -26,6 +28,22 @@ function mulberry32(a: number) {
 }
 
 const path = computed(() => {
+  if (props.values) {
+    if (props.values.length < 2) {
+      const mid = props.h / 2
+      return `M0,${mid.toFixed(1)} L${props.w},${mid.toFixed(1)}`
+    }
+
+    const min = Math.min(...props.values)
+    const max = Math.max(...props.values)
+    const range = Math.max(1, max - min)
+    return props.values.map((value, i) => {
+      const x = (i / (props.values!.length - 1)) * props.w
+      const y = props.h - 3 - ((value - min) / range) * (props.h - 6)
+      return (i ? 'L' : 'M') + x.toFixed(1) + ',' + y.toFixed(1)
+    }).join(' ')
+  }
+
   const r = mulberry32(props.seed + props.tick)
   const pts = 24
   const xs = Array.from({ length: pts }, (_, i) => (i / (pts - 1)) * props.w)
