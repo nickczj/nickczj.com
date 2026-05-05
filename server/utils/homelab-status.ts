@@ -218,17 +218,16 @@ export async function readHomelabSnapshotFromD1(db: HomelabD1Database) {
   const metrics = (metricRows.results ?? []).map(metricRecordFromD1Row)
   if (!metrics.length) return null
 
+  const latestTs = metrics[0]!.ts
+
   const serviceRows = await db
     .prepare(
-      `SELECT s.ts, s.service, s.state
-       FROM service_status s
-       JOIN (
-        SELECT service, MAX(ts) AS ts
-        FROM service_status
-        GROUP BY service
-       ) latest ON latest.service = s.service AND latest.ts = s.ts
-       ORDER BY s.service ASC`
+      `SELECT ts, service, state
+       FROM service_status
+       WHERE ts = ?1
+       ORDER BY service ASC`
     )
+    .bind(latestTs)
     .all<HomelabServiceRow>()
 
   return snapshotFromRows(metrics, (serviceRows.results ?? []).map(serviceRecordFromD1Row))

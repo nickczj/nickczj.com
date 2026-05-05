@@ -1,16 +1,183 @@
 #!/usr/bin/env bun
+// Self-contained homelab status pusher — drop this on any Linux host with Bun.
+// No dependencies on the rest of the repo.
 import { execFile } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
 import { cpus, freemem, hostname, loadavg, totalmem, uptime } from 'node:os'
 import { promisify } from 'node:util'
-import {
-  type HomelabKpi,
-  type HomelabService,
-  type HomelabStatusPayload,
-  validateHomelabPayload
-} from '../server/utils/homelab-status'
 
 const execFileAsync = promisify(execFile)
+
+// ── Types ──────────────────────────────────────────────────────────────────
+
+const HOMELAB_KPI_KEYS = ['cpu', 'mem', 'temp', 'power', 'load'] as const
+const HOMELAB_SERVICE_STATES = ['up', 'slow', 'down'] as const
+const HOMELAB_TONES = ['ok', 'warn', 'bad'] as const
+
+type HomelabKpiKey = typeof HOMELAB_KPI_KEYS[number]
+type HomelabServiceState = typeof HOMELAB_SERVICE_STATES[number]
+type HomelabTone = typeof HOMELAB_TONES[number]
+
+type HomelabKpi = {
+  key: HomelabKpiKey
+  label: string
+  unit: string
+  value: number | null
+  window: string
+  tone: HomelabTone
+}
+
+type HomelabService = {
+  name: string
+  state: HomelabServiceState
+  detail: string
+}
+
+type HomelabStatusPayload = {
+  version: 1
+  node: {
+    name: string
+    uptimeSeconds: number
+  }
+  kpis: HomelabKpi[]
+  services: HomelabService[]
+}
+
+type ValidationResult =
+  | { ok: true; value: HomelabStatusPayload }
+  | { ok: false; error: string }
+
+// ── Validation (inlined from server/utils/homelab-status.ts) ───────────────
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function cleanString(value: unknown, maxLength: number): string {
+  if (typeof value !== 'string') return ''
+  return value.trim().slice(0, maxLength)
+}
+
+function cleanFiniteNumber(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null
+  return Math.round(value * 100) / 100
+}
+
+function cleanNonNegativeNumber(value: unknown): number | null {
+  const cleaned = cleanFiniteNumber(value)
+  if (cleaned === null || cleaned < 0) return null
+  return cleaned
+}
+
+function isHomelabKpiKey(value: unknown): value is HomelabKpiKey {
+  return typeof value === 'string' && (HOMELAB_KPI_KEYS as readonly string[]).includes(value)
+}
+
+function isHomelabTone(value: unknown): value is HomelabTone {
+  return typeof value === 'string' && (HOMELAB_TONES as readonly string[]).includes(value)
+}
+
+function cleanServiceState(value: unknown): HomelabServiceState | null {
+  if (value === 'ok') return 'up'
+  if (value === 'warn') return 'slow'
+  if (typeof value !== 'string') return null
+  return (HOMELAB_SERVICE_STATES as readonly string[]).includes(value) ? value as HomelabServiceState : null
+}
+
+function serviceDetail(state: HomelabServiceState): string {
+  if (state === 'down') return 'down'
+  if (state === 'slow') return 'slow'
+  return 'up'
+}
+
+function toneForKpi(key: HomelabKpiKey, value: number | null): HomelabTone {
+  if (value === null) return 'warn'
+  if (key === 'cpu' || key === 'mem') {
+    if (value >= 90) return 'bad'
+    if (value >= 75) return 'warn'
+  }
+  if (key === 'temp') {
+    if (value >= 80) return 'bad'
+    if (value >= 65) return 'warn'
+  }
+  if (key === 'load') {
+    if (value >= 8) return 'bad'
+    if (value >= 4) return 'warn'
+  }
+  return 'ok'
+}
+
+function validateHomelabPayload(input: unknown): ValidationResult {
+  if (!isRecord(input)) return { ok: false, error: 'payload must be an object' }
+  if (input.version !== 1) return { ok: false, error: 'version must be 1' }
+
+  if (!isRecord(input.node)) return { ok: false, error: 'node must be an object' }
+  const nodeName = cleanString(input.node.name, 64)
+  const uptimeSeconds = cleanNonNegativeNumber(input.node.uptimeSeconds)
+  if (!nodeName) return { ok: false, error: 'node.name is required' }
+  if (uptimeSeconds === null) return { ok: false, error: 'node.uptimeSeconds must be a non-negative number' }
+
+  if (!Array.isArray(input.kpis) || input.kpis.length < 1 || input.kpis.length > 8) {
+    return { ok: false, error: 'kpis must contain 1-8 entries' }
+  }
+
+  const seenKpis = new Set<string>()
+  const kpis: HomelabKpi[] = []
+  for (const rawKpi of input.kpis) {
+    if (!isRecord(rawKpi)) return { ok: false, error: 'each kpi must be an object' }
+    const key = rawKpi.key
+    if (!isHomelabKpiKey(key)) return { ok: false, error: 'kpi.key is invalid' }
+    if (seenKpis.has(key)) return { ok: false, error: `duplicate kpi key: ${key}` }
+    seenKpis.add(key)
+
+    const label = cleanString(rawKpi.label, 24)
+    const unit = cleanString(rawKpi.unit, 8)
+    const window = cleanString(rawKpi.window, 16)
+    const value = rawKpi.value === null ? null : cleanFiniteNumber(rawKpi.value)
+    const tone = isHomelabTone(rawKpi.tone) ? rawKpi.tone : toneForKpi(key, value)
+
+    if (!label) return { ok: false, error: `kpi ${key} label is required` }
+    if (!window) return { ok: false, error: `kpi ${key} window is required` }
+    if (rawKpi.value !== null && value === null) return { ok: false, error: `kpi ${key} value must be a finite number or null` }
+
+    kpis.push({ key, label, unit, value, window, tone })
+  }
+
+  if (!Array.isArray(input.services) || input.services.length > 20) {
+    return { ok: false, error: 'services must contain 0-20 entries' }
+  }
+
+  const services: HomelabService[] = []
+  const seenServices = new Set<string>()
+  for (const rawService of input.services) {
+    if (!isRecord(rawService)) return { ok: false, error: 'each service must be an object' }
+    const name = cleanString(rawService.name, 48)
+    if (!name) return { ok: false, error: 'service.name is required' }
+    if (seenServices.has(name)) return { ok: false, error: `duplicate service name: ${name}` }
+    seenServices.add(name)
+
+    const state = cleanServiceState(rawService.state ?? rawService.status)
+    if (!state) return { ok: false, error: `service ${name} state is invalid` }
+
+    services.push({
+      name,
+      state,
+      detail: cleanString(rawService.detail, 80) || serviceDetail(state)
+    })
+  }
+
+  return {
+    ok: true,
+    value: {
+      version: 1,
+      node: { name: nodeName, uptimeSeconds },
+      kpis,
+      services
+    }
+  }
+}
+
+// ── Collectors ──────────────────────────────────────────────────────────────
 
 const DEFAULT_SERVICES = [
   'traefik',
@@ -21,10 +188,7 @@ const DEFAULT_SERVICES = [
   'beszel'
 ]
 
-type CpuStat = {
-  idle: number
-  total: number
-}
+type CpuStat = { idle: number; total: number }
 
 async function main() {
   const payload = await collectHomelabStatus()
@@ -60,7 +224,7 @@ async function main() {
   console.log(`pushed homelab status to ${endpoint}${source}`)
 }
 
-export async function collectHomelabStatus(): Promise<HomelabStatusPayload> {
+async function collectHomelabStatus(): Promise<HomelabStatusPayload> {
   const [cpu, mem, temp, load, uptimeSeconds, services] = await Promise.all([
     collectCpuPercent(),
     collectMemoryPercent(),
@@ -88,7 +252,7 @@ export async function collectHomelabStatus(): Promise<HomelabStatusPayload> {
   }
 }
 
-export async function collectCpuPercent() {
+async function collectCpuPercent() {
   const first = parseCpuStat(await readOptionalFile('/proc/stat')) ?? readOsCpuStat()
   await new Promise((resolve) => setTimeout(resolve, 250))
   const second = parseCpuStat(await readOptionalFile('/proc/stat')) ?? readOsCpuStat()
@@ -101,31 +265,30 @@ export async function collectCpuPercent() {
   return round((1 - idleDelta / totalDelta) * 100)
 }
 
-export async function collectMemoryPercent() {
+async function collectMemoryPercent() {
   return parseMemoryPercent(await readOptionalFile('/proc/meminfo')) ?? memoryPercentFromBytes(totalmem(), freemem())
 }
 
-export async function collectLoadAverage() {
+async function collectLoadAverage() {
   return parseLoadAverage(await readOptionalFile('/proc/loadavg')) ?? round(loadavg()[0] ?? 0)
 }
 
-export async function collectUptimeSeconds() {
+async function collectUptimeSeconds() {
   return parseUptimeSeconds(await readOptionalFile('/proc/uptime')) ?? round(uptime())
 }
 
-export async function collectTemperature() {
+async function collectTemperature() {
   const output = await tryExec('sensors', ['-j'], 1500)
   if (!output) return null
   return parseSensorsTemperature(output)
 }
 
-export async function collectDockerServices(names: string[]) {
+async function collectDockerServices(names: string[]) {
   if (!names.length) return []
-
   return Promise.all(names.map(inspectDockerService))
 }
 
-export function parseCpuStat(input: string): CpuStat | null {
+function parseCpuStat(input: string): CpuStat | null {
   if (!input) return null
 
   const line = input.split('\n').find((entry) => entry.startsWith('cpu '))
@@ -139,7 +302,7 @@ export function parseCpuStat(input: string): CpuStat | null {
   return { idle, total }
 }
 
-export function parseMemoryPercent(input: string) {
+function parseMemoryPercent(input: string) {
   if (!input) return null
 
   const values = new Map<string, number>()
@@ -155,21 +318,21 @@ export function parseMemoryPercent(input: string) {
   return round(((total - available) / total) * 100)
 }
 
-export function parseLoadAverage(input: string) {
+function parseLoadAverage(input: string) {
   if (!input) return null
 
   const value = Number(input.trim().split(/\s+/)[0])
   return Number.isFinite(value) ? round(value) : null
 }
 
-export function parseUptimeSeconds(input: string) {
+function parseUptimeSeconds(input: string) {
   if (!input) return null
 
   const value = Number(input.trim().split(/\s+/)[0])
   return Number.isFinite(value) && value >= 0 ? round(value) : 0
 }
 
-export function parseSensorsTemperature(input: string) {
+function parseSensorsTemperature(input: string) {
   try {
     const parsed = JSON.parse(input)
     const readings: number[] = []
@@ -181,7 +344,7 @@ export function parseSensorsTemperature(input: string) {
   }
 }
 
-export function parseDockerInspect(output: string, expectedNames: string[]): HomelabService[] {
+function parseDockerInspect(output: string, expectedNames: string[]): HomelabService[] {
   const byName = new Map<string, HomelabService>()
 
   for (const line of output.split('\n')) {
@@ -328,10 +491,6 @@ function requireEnv(key: string) {
 
 function round(value: number) {
   return Math.round(value * 100) / 100
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 if (import.meta.main) {

@@ -1,75 +1,92 @@
-# Nuxt Minimal Starter
+# nickczj.com
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+Personal site built with Nuxt 4, Vue 3, and Bun. Deployed to Cloudflare Pages with D1-backed live homelab status.
 
-## Setup
+## Stack
 
-Make sure to install dependencies:
+- **Framework:** Nuxt 4 + Vue 3 + Bun
+- **Content:** Nuxt Content v3 (file-based, markdown)
+- **Hosting:** Cloudflare Pages (static prerender + serverless functions)
+- **Database:** Cloudflare D1 (homelab telemetry)
+- **Styling:** Plain CSS (no Tailwind)
+
+## Local Development
 
 ```bash
-# npm
-npm install
-
-# pnpm
-pnpm install
-
-# yarn
-yarn install
-
-# bun
 bun install
+bun run dev        # http://localhost:3000
+bun run build      # production build
+bun run preview    # preview production build locally
+bun test           # run test suite
 ```
 
-## Development Server
+## Content
 
-Start the development server on `http://localhost:3000`:
+Content lives in `content/` as markdown files managed by Nuxt Content v3:
+
+- `content/blog/*.md` — blog posts (title, description, date, tags, draft)
+- `content/now/*.md` — monthly focus entries (title, description, date, summary)
+- `content/pages/*.md` — standalone pages (uses, colophon)
+
+The homepage queries blog and now collections directly. Draft posts are filtered from public listings.
+
+## Homelab Status
+
+Live system metrics from the homelab NAS displayed on the homepage via a push-based architecture:
+
+```
+NAS (systemd timer, every 2 min)
+  → POST /api/_status/ingest (Bearer token)
+    → D1 (metrics + service_status tables)
+      → GET /api/status (public, 30s cache)
+        → Homepage (polls every 30s)
+```
+
+- **Pusher:** `scripts/push-homelab-status.ts` (repo) or `scripts/push-homelab-status-standalone.ts` (self-contained, for deployment)
+- **Ingest endpoint:** `server/api/_status/ingest.post.ts` — validates payload, writes to D1
+- **Read endpoint:** `server/api/status.get.ts` — public, returns latest snapshot + history
+- **Core logic:** `server/utils/homelab-status.ts` — types, validation, D1 read/write, memory fallback
+- **D1 schema:** `migrations/0002_structured_homelab_status.sql` — `metrics` and `service_status` tables
+
+## Deployment
+
+### Cloudflare Pages
 
 ```bash
-# npm
-npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
+# Build with the Cloudflare Pages preset
+NITRO_PRESET=cloudflare_pages bun run build
+# Output: dist/
 ```
 
-## Production
+Deploy via the Cloudflare dashboard or Wrangler CLI. The dashboard build command should be:
 
-Build the application for production:
+```
+NITRO_PRESET=cloudflare_pages bun run build
+```
+
+Build output directory: `dist`
+
+### D1 Migrations
 
 ```bash
-# npm
-npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
+# Apply homelab schema to remote D1
+bunx wrangler d1 migrations apply HOMELAB_DB --remote
 ```
 
-Locally preview production build:
+### Secrets
 
 ```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
+# Set the ingest auth token on Cloudflare Pages
+bunx wrangler pages secret put HOMELAB_STATUS_TOKEN --project-name nickczj-com
 ```
 
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+### Wrangler Config
+
+Two D1 bindings in `wrangler.toml`:
+
+- `DB` → `nickczj-content` (Nuxt Content)
+- `HOMELAB_DB` → `nickczj-homelab-status` (homelab telemetry)
+
+## Homelab Pusher Deployment
+
+The standalone script (`scripts/push-homelab-status-standalone.ts`) runs on the NAS via systemd timer. See `PROGRESS.md` for setup details.
