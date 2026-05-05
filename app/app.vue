@@ -1,23 +1,32 @@
+<script setup lang="ts">
+const route = useRoute()
+const isHome = computed(() => route.path === '/')
+</script>
+
 <template>
-  <div class="site-shell">
+  <div :class="isHome ? 'home-shell-wrapper' : 'site-shell'">
     <NuxtRouteAnnouncer />
-    <header class="site-header">
-      <span class="site-brand">nickczj.com</span>
-      <nav class="site-nav" aria-label="Primary navigation">
-        <NuxtLink to="/blog">Blog</NuxtLink>
-        <NuxtLink to="/now">Now</NuxtLink>
-        <NuxtLink to="/uses">Uses</NuxtLink>
-        <a href="https://cv.nickczj.com">CV</a>
-      </nav>
-    </header>
+    <template v-if="!isHome">
+      <header class="site-header">
+        <NuxtLink to="/" class="site-brand">nickczj.com</NuxtLink>
+        <nav class="site-nav" aria-label="Primary navigation">
+          <NuxtLink to="/blog">Blog</NuxtLink>
+          <NuxtLink to="/now">Now</NuxtLink>
+          <NuxtLink to="/uses">Uses</NuxtLink>
+          <a href="https://cv.nickczj.com">CV</a>
+        </nav>
+      </header>
 
-    <main class="site-main">
-      <NuxtPage />
-    </main>
+      <main class="site-main">
+        <NuxtPage />
+      </main>
 
-    <footer class="site-footer">
-      <NuxtLink to="/colophon">Colophon</NuxtLink>
-    </footer>
+      <footer class="site-footer">
+        <NuxtLink to="/colophon">Colophon</NuxtLink>
+      </footer>
+    </template>
+
+    <NuxtPage v-else />
   </div>
 </template>
 
