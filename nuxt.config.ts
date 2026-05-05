@@ -5,7 +5,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       buildNodeVersion: process.version,
-      buildBunVersion: process.versions.bun ?? '',
+      buildBunVersion: (globalThis as any).Bun?.version ?? process.versions.bun ?? '',
       buildOsInfo: `${os.platform()} ${os.release()}`
     }
   },
