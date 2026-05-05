@@ -71,16 +71,16 @@ const DEFAULT_KPIS: HomelabKpi[] = [
 
 const DEFAULT_SERVICE_NAMES = [
   'traefik',
-  'grafana',
-  'home-assistant',
+  'immich_server',
   'jellyfin',
-  'vesto-dev',
-  'cf-tunnel'
+  'suwayomi',
+  'paperless',
+  'beszel'
 ]
 
 const PROJECTS = [
   { name: 'vesto',           tag: 'v0.2 · in flight', value: 47,  tone: 'ok',   note: 'sg portfolio tool' },
-  { name: 'homelab v3',      tag: 'stable',           value: 92,  tone: 'ok',   note: 'k3s + tailscale' },
+  { name: 'homelab v3',      tag: 'stable',           value: 92,  tone: 'ok',   note: 'docker + traefik' },
   { name: 'cpf-calc',        tag: 'draft',            value: 18,  tone: 'warn', note: 'allocation + bonus' },
   { name: 'cv.nickczj.com',  tag: 'live',             value: 100, tone: 'ok',   note: 'cf pages' }
 ]
@@ -338,6 +338,19 @@ onBeforeUnmount(() => {
       <div class="col gap-12">
         <section class="card">
           <div class="card-h">
+            <div class="card-title">about</div>
+            <div class="card-meta">{{ NICK.loc }} · utc+8</div>
+          </div>
+          <div class="tile" style="margin-bottom: 10px;">
+            backend-leaning full-stack dev — <b>java, go, nuxt</b>. I build small infra and small finance tools, usually for myself, sometimes useful for others.
+          </div>
+          <a class="cv-link" href="https://cv.nickczj.com" target="_blank" rel="noopener">
+            cv.nickczj.com <span style="font-size: 14px;">↗</span>
+          </a>
+        </section>
+
+        <section class="card">
+          <div class="card-h">
             <div class="card-title">/now{{ nowMonthLabel ? ' · ' + nowMonthLabel : '' }}</div>
             <div class="card-meta">latest</div>
           </div>
@@ -348,19 +361,6 @@ onBeforeUnmount(() => {
           <div style="margin-top: 10px;">
             <NuxtLink to="/now" class="cv-link">read /now <span style="font-size: 14px;">→</span></NuxtLink>
           </div>
-        </section>
-
-        <section class="card">
-          <div class="card-h">
-            <div class="card-title">about</div>
-            <div class="card-meta">{{ NICK.loc }} · utc+8</div>
-          </div>
-          <div class="tile" style="margin-bottom: 10px;">
-            backend-leaning full-stack — <b>java, go, nuxt</b>. i build small infra and small finance tools, usually for myself, sometimes useful for others.
-          </div>
-          <a class="cv-link" href="https://cv.nickczj.com" target="_blank" rel="noopener">
-            cv.nickczj.com <span style="font-size: 14px;">↗</span>
-          </a>
         </section>
       </div>
     </div>
