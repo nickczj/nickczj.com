@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { execFile } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
-import { hostname } from 'node:os'
+import { cpus, freemem, hostname, loadavg, totalmem, uptime } from 'node:os'
 import { promisify } from 'node:util'
 import {
   type HomelabKpi,
@@ -87,9 +87,9 @@ export async function collectHomelabStatus(): Promise<HomelabStatusPayload> {
 }
 
 export async function collectCpuPercent() {
-  const first = parseCpuStat(await readFile('/proc/stat', 'utf8'))
+  const first = parseCpuStat(await readOptionalFile('/proc/stat')) ?? readOsCpuStat()
   await new Promise((resolve) => setTimeout(resolve, 250))
-  const second = parseCpuStat(await readFile('/proc/stat', 'utf8'))
+  const second = parseCpuStat(await readOptionalFile('/proc/stat')) ?? readOsCpuStat()
   if (!first || !second) return null
 
   const idleDelta = second.idle - first.idle
@@ -100,15 +100,15 @@ export async function collectCpuPercent() {
 }
 
 export async function collectMemoryPercent() {
-  return parseMemoryPercent(await readFile('/proc/meminfo', 'utf8'))
+  return parseMemoryPercent(await readOptionalFile('/proc/meminfo')) ?? memoryPercentFromBytes(totalmem(), freemem())
 }
 
 export async function collectLoadAverage() {
-  return parseLoadAverage(await readFile('/proc/loadavg', 'utf8'))
+  return parseLoadAverage(await readOptionalFile('/proc/loadavg')) ?? round(loadavg()[0] ?? 0)
 }
 
 export async function collectUptimeSeconds() {
-  return parseUptimeSeconds(await readFile('/proc/uptime', 'utf8'))
+  return parseUptimeSeconds(await readOptionalFile('/proc/uptime')) ?? round(uptime())
 }
 
 export async function collectTemperature() {
@@ -124,6 +124,8 @@ export async function collectDockerServices(names: string[]) {
 }
 
 export function parseCpuStat(input: string): CpuStat | null {
+  if (!input) return null
+
   const line = input.split('\n').find((entry) => entry.startsWith('cpu '))
   if (!line) return null
 
@@ -136,6 +138,8 @@ export function parseCpuStat(input: string): CpuStat | null {
 }
 
 export function parseMemoryPercent(input: string) {
+  if (!input) return null
+
   const values = new Map<string, number>()
   for (const line of input.split('\n')) {
     const match = line.match(/^(\w+):\s+(\d+)/)
@@ -150,11 +154,15 @@ export function parseMemoryPercent(input: string) {
 }
 
 export function parseLoadAverage(input: string) {
+  if (!input) return null
+
   const value = Number(input.trim().split(/\s+/)[0])
   return Number.isFinite(value) ? round(value) : null
 }
 
 export function parseUptimeSeconds(input: string) {
+  if (!input) return null
+
   const value = Number(input.trim().split(/\s+/)[0])
   return Number.isFinite(value) && value >= 0 ? round(value) : 0
 }
@@ -250,6 +258,32 @@ async function tryExec(command: string, args: string[], timeout: number) {
   } catch {
     return ''
   }
+}
+
+async function readOptionalFile(path: string) {
+  try {
+    return await readFile(path, 'utf8')
+  } catch {
+    return ''
+  }
+}
+
+function readOsCpuStat(): CpuStat | null {
+  const stats = cpus()
+  if (!stats.length) return null
+
+  return stats.reduce<CpuStat>((sum, cpu) => {
+    const times = cpu.times
+    return {
+      idle: sum.idle + times.idle,
+      total: sum.total + times.user + times.nice + times.sys + times.idle + times.irq
+    }
+  }, { idle: 0, total: 0 })
+}
+
+function memoryPercentFromBytes(total: number, free: number) {
+  if (!Number.isFinite(total) || !Number.isFinite(free) || total <= 0) return null
+  return round(((total - free) / total) * 100)
 }
 
 function getServiceNames() {
