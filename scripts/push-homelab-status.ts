@@ -55,7 +55,9 @@ async function main() {
     throw new Error(`status push failed: ${response.status} ${response.statusText}${text ? ` - ${text}` : ''}`)
   }
 
-  console.log(`pushed homelab status to ${endpoint}`)
+  const result = await response.json().catch(() => null)
+  const source = isRecord(result) && typeof result.source === 'string' ? ` (${result.source})` : ''
+  console.log(`pushed homelab status to ${endpoint}${source}`)
 }
 
 export async function collectHomelabStatus(): Promise<HomelabStatusPayload> {
