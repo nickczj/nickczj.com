@@ -92,12 +92,19 @@ const YIELDS = [
   { name: 'cpf sa',     val: '4.04%', delta: '+0.00', dir: 'up'   as const }
 ]
 
-const CURRENTLY = [
-  { ic: '▶', lbl: 'playing', val: 'tycho — awake' },
-  { ic: '📖', lbl: 'reading', val: 'ddia, ch. 7 — replication' },
-  { ic: '☁',  lbl: 'sg',      val: '28°c · light rain · pm2.5 38' },
-  { ic: '⏚',  lbl: 'node',    val: 'v22.9 · bun 1.2 · macOS 15.4' }
-]
+// Currently — reading (content collection)
+const { data: readingEntry } = await useAsyncData('home-currently-reading', () =>
+  queryCollection('currently').where('draft', '=', false).first()
+)
+
+// Currently — dev environment (build-time)
+const runtimeConfig = useRuntimeConfig()
+const buildEnv = computed(() => {
+  const node = (runtimeConfig.public.buildNodeVersion as string) || '?'
+  const bun = (runtimeConfig.public.buildBunVersion as string) || '?'
+  const os = (runtimeConfig.public.buildOsInfo as string) || '?'
+  return { node, bun, os }
+})
 
 // Blog posts (real data)
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
@@ -143,12 +150,56 @@ const { data: homelabStatus, refresh: refreshHomelabStatus } = await useFetch<Ho
   default: emptyHomelabStatus
 })
 
+// Currently — playing (Spotify)
+const { data: spotifyData, refresh: refreshSpotify, status: spotifyStatus } = await useFetch('/api/spotify/now', {
+  default: () => ({ playing: false, error: false, track: '', artist: '' })
+})
+
 // Live tick + clock — initialised on mount only to avoid hydration mismatch.
 const tick = ref(0)
 const clock = ref('--:--')
 const mounted = ref(false)
 let timer: ReturnType<typeof setInterval> | null = null
 let homelabTimer: ReturnType<typeof setInterval> | null = null
+let spotifyTimer: ReturnType<typeof setInterval> | null = null
+let weatherTimer: ReturnType<typeof setInterval> | null = null
+
+// Currently — weather (client-side, Open-Meteo)
+const WMO: Record<number, string> = {
+  0: 'clear',
+  1: 'partly cloudy', 2: 'partly cloudy', 3: 'partly cloudy',
+  45: 'fog', 48: 'fog',
+  51: 'drizzle', 53: 'drizzle', 55: 'drizzle',
+  61: 'rain', 63: 'rain', 65: 'rain',
+  80: 'rain showers', 81: 'rain showers', 82: 'rain showers',
+  95: 'thunderstorm', 96: 'thunderstorm', 99: 'thunderstorm'
+}
+
+const weatherData = ref<{ temp: string; condition: string; pm25: string } | null>(null)
+const weatherLoaded = ref(false)
+
+async function fetchWeather() {
+  try {
+    const [weatherRes, aqRes] = await Promise.all([
+      fetch('https://api.open-meteo.com/v1/forecast?latitude=1.3521&longitude=103.8198&current=temperature_2m,weather_code,relative_humidity_2m'),
+      fetch('https://air-quality-api.open-meteo.com/v1/air-quality?latitude=1.3521&longitude=103.8198&current=pm2_5')
+    ])
+    if (!weatherRes.ok || !aqRes.ok) throw new Error('weather fetch failed')
+    const w = await weatherRes.json()
+    const a = await aqRes.json()
+    const code = w.current.weather_code as number
+    const temp = Math.round(w.current.temperature_2m as number)
+    const pm25 = Math.round(a.current.pm2_5 as number)
+    weatherData.value = {
+      temp: `${temp}°c`,
+      condition: WMO[code] ?? 'unknown',
+      pm25: `pm2.5 ${pm25}`
+    }
+    weatherLoaded.value = true
+  } catch {
+    weatherLoaded.value = true
+  }
+}
 
 function pad2(n: number) { return n < 10 ? '0' + n : '' + n }
 function formatNow() {
@@ -216,6 +267,57 @@ const services = computed(() => homelabData.value?.services ?? DEFAULT_SERVICE_N
   detail: 'waiting'
 })))
 
+// Currently — composed lines
+const currentlyLines = computed(() => {
+  const lines: Array<{ ic: string; lbl: string; val: string }> = []
+
+  if (spotifyData.value?.playing) {
+    lines.push({
+      ic: '▶',
+      lbl: 'playing',
+      val: `${spotifyData.value.artist} — ${spotifyData.value.track}`
+    })
+  } else {
+    lines.push({
+      ic: '▶',
+      lbl: 'playing',
+      val: spotifyData.value?.error ? 'unavailable' : 'nothing playing'
+    })
+  }
+
+  if (readingEntry.value) {
+    let val = readingEntry.value.book
+    if (readingEntry.value.author) val += ` — ${readingEntry.value.author}`
+    if (readingEntry.value.chapter) val += `, ${readingEntry.value.chapter}`
+    lines.push({ ic: '📖', lbl: 'reading', val })
+  }
+
+  if (weatherData.value) {
+    lines.push({
+      ic: '☁',
+      lbl: 'sg',
+      val: `${weatherData.value.temp} · ${weatherData.value.condition} · ${weatherData.value.pm25}`
+    })
+  }
+
+  lines.push({
+    ic: '⏚',
+    lbl: 'node',
+    val: `${buildEnv.value.node} · bun ${buildEnv.value.bun} · ${buildEnv.value.os}`
+  })
+
+  return lines
+})
+
+const currentlyMeta = computed(() => {
+  let n = 0
+  if (spotifyStatus.value !== 'idle') n++
+  if (readingEntry.value) n++
+  if (weatherLoaded.value) n++
+  n++ // node always connected
+  return n >= 4 ? 'live' : `live · ${n}/4`
+})
+
 // Terminal palette
 const termOpen = ref(false)
 const yieldsForTerm = computed(() => YIELDS.map(y => ({ name: y.name, val: y.val })))
@@ -245,12 +347,22 @@ onMounted(() => {
   homelabTimer = setInterval(() => {
     refreshHomelabStatus()
   }, 30000)
+  refreshSpotify()
+  spotifyTimer = setInterval(() => {
+    refreshSpotify()
+  }, 30000)
+  fetchWeather()
+  weatherTimer = setInterval(() => {
+    fetchWeather()
+  }, 300000)
   window.addEventListener('keydown', onKey)
 })
 
 onBeforeUnmount(() => {
   if (timer) clearInterval(timer)
   if (homelabTimer) clearInterval(homelabTimer)
+  if (spotifyTimer) clearInterval(spotifyTimer)
+  if (weatherTimer) clearInterval(weatherTimer)
   if (typeof window !== 'undefined') window.removeEventListener('keydown', onKey)
 })
 </script>
@@ -468,10 +580,10 @@ onBeforeUnmount(() => {
       <section class="card">
         <div class="card-h">
           <div class="card-title">currently</div>
-          <div class="card-meta">demo</div>
+          <div class="card-meta">{{ currentlyMeta }}</div>
         </div>
         <div
-          v-for="line in CURRENTLY"
+          v-for="line in currentlyLines"
           :key="line.lbl"
           class="now-line"
         >

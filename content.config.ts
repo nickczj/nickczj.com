@@ -19,6 +19,20 @@ export default defineContentConfig({
         { columns: ['draft'] }
       ]
     }),
+    currently: defineCollection({
+      type: 'page',
+      source: 'currently/*.md',
+      schema: z.object({
+        book: z.string(),
+        author: z.string(),
+        chapter: z.string().optional(),
+        note: z.string().optional(),
+        draft: z.boolean().default(false)
+      }),
+      indexes: [
+        { columns: ['draft'] }
+      ]
+    }),
     now: defineCollection({
       type: 'page',
       source: 'now/*.md',
