@@ -340,9 +340,11 @@ const gitHubCells = computed(() => {
 const gitHubMeta = computed(() => {
   const d = gitHubData.value
   if (!d || 'unavailable' in d || !('totalContributions' in d)) {
-    return 'demo · 847 commits · streak 14d'
+    const err = d && 'error' in d ? d.error : 'no data'
+    return `unavailable · ${err}`
   }
-  return `${d.totalContributions} contributions · streak ${d.streak}d`
+  const stale = 'stale' in d && (d as { stale?: boolean }).stale ? 'stale · ' : ''
+  return `${stale}${d.totalContributions} contributions · streak ${d.streak}d`
 })
 
 // Terminal palette
