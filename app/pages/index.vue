@@ -21,7 +21,7 @@ const NICK = {
 const NAV = [
   { label: '~/home',    href: '/',          on: true },
   { label: 'blog',      href: '/blog' },
-  { label: 'projects',  href: '#projects' },
+  { label: 'projects',  href: '/projects' },
   { label: 'uses',      href: '/uses' },
   { label: 'now',       href: '/now' },
   { label: 'colophon',  href: '/colophon' }

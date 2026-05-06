@@ -17,6 +17,7 @@ onMounted(() => {
         <NuxtLink to="/" class="site-brand">nickczj.com</NuxtLink>
         <nav class="site-nav" aria-label="Primary navigation">
           <NuxtLink to="/blog">Blog</NuxtLink>
+          <NuxtLink to="/projects">Projects</NuxtLink>
           <NuxtLink to="/now">Now</NuxtLink>
           <NuxtLink to="/uses">Uses</NuxtLink>
           <a href="https://cv.nickczj.com">CV</a>
