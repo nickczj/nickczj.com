@@ -1,6 +1,5 @@
 import { defineEventHandler, setHeader } from 'h3'
 
-const USERNAME = 'nickczj'
 const GITHUB_API = 'https://api.github.com/graphql'
 const CACHE_TTL = 5 * 60 * 1000
 
@@ -15,7 +14,7 @@ interface ContributionWeek {
 
 interface GitHubResponse {
   data: {
-    user: {
+    viewer: {
       contributionsCollection: {
         contributionCalendar: {
           totalContributions: number
@@ -93,8 +92,8 @@ function computeLongestStreak(days: { count: number; date: string }[]): number {
 
 async function fetchContributions(token: string): Promise<SuccessPayload> {
   const query = `
-    query($username: String!) {
-      user(login: $username) {
+    query {
+      viewer {
         contributionsCollection {
           contributionCalendar {
             totalContributions
@@ -116,7 +115,7 @@ async function fetchContributions(token: string): Promise<SuccessPayload> {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ query, variables: { username: USERNAME } })
+    body: JSON.stringify({ query })
   })
 
   if (!res.ok) {
@@ -125,11 +124,11 @@ async function fetchContributions(token: string): Promise<SuccessPayload> {
 
   const json = (await res.json()) as GitHubResponse
 
-  if (!json.data?.user?.contributionsCollection?.contributionCalendar) {
+  if (!json.data?.viewer?.contributionsCollection?.contributionCalendar) {
     throw new Error('Unexpected GitHub API response shape')
   }
 
-  const cal = json.data.user.contributionsCollection.contributionCalendar
+  const cal = json.data.viewer.contributionsCollection.contributionCalendar
 
   const allDays: { count: number; date: string }[] = []
   const weeks: CellData[][] = []
