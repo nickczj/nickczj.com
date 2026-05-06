@@ -1,11 +1,20 @@
 import os from 'node:os'
+import { execSync } from 'node:child_process'
+
+function detectBunVersion(): string {
+  try {
+    return execSync('bun --version', { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+  } catch {
+    return ''
+  }
+}
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       buildNodeVersion: process.version,
-      buildBunVersion: (globalThis as any).Bun?.version ?? process.versions.bun ?? '',
+      buildBunVersion: detectBunVersion(),
       buildOsInfo: `${os.platform()} ${os.release()}`
     }
   },
