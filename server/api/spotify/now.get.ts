@@ -61,7 +61,8 @@ export default defineEventHandler(async (event) => {
     return {
       playing: true,
       track: track.item.name,
-      artist: track.item.artists.map((a) => a.name).join(', ')
+      artist: track.item.artists.map((a) => a.name).join(', '),
+      url: track.item.external_urls.spotify
     }
   } catch (e) {
     console.error('spotify/now error:', (e as Error).message)

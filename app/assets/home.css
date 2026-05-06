@@ -364,6 +364,11 @@
 }
 .home-shell .now-line .lbl { color: var(--ink-3); font: 500 10.5px/1 var(--mono); text-transform: uppercase; letter-spacing: 0.06em; width: 56px; }
 .home-shell .now-line .val { color: var(--ink); flex: 1; }
+.home-shell .now-line .now-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+.home-shell .now-line .now-link:hover { color: var(--accent-2); text-decoration: underline; }
 
 /* footer */
 .home-shell .home-footer {

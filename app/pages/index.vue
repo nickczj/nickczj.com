@@ -92,6 +92,12 @@ const YIELDS = [
   { name: 'cpf sa',     val: '4.04%', delta: '+0.00', dir: 'up'   as const }
 ]
 
+const SPOTIFY_FALLBACK = {
+  artist: '(K)NoW_NAME',
+  track: 'Welcome トゥ 混沌',
+  url: 'https://open.spotify.com/track/5WFyER9XL7zcDkaj7CuYmv?si=3a2c1929eed540f4'
+}
+
 // Currently — reading (content collection)
 const { data: readingEntry } = await useAsyncData('home-currently-reading', () =>
   queryCollection('currently').where('draft', '=', false).first()
@@ -152,7 +158,7 @@ const { data: homelabStatus, refresh: refreshHomelabStatus } = await useFetch<Ho
 
 // Currently — playing (Spotify)
 const { data: spotifyData, refresh: refreshSpotify, status: spotifyStatus } = await useFetch('/api/spotify/now', {
-  default: () => ({ playing: false, error: false, track: '', artist: '' })
+  default: () => ({ playing: false, error: false, track: '', artist: '', url: '' })
 })
 
 // GitHub contributions
@@ -275,19 +281,23 @@ const services = computed(() => homelabData.value?.services ?? DEFAULT_SERVICE_N
 
 // Currently — composed lines
 const currentlyLines = computed(() => {
-  const lines: Array<{ ic: string; lbl: string; val: string }> = []
+  const lines: Array<{ ic: string; lbl: string; val: string; url?: string }> = []
 
   if (spotifyData.value?.playing) {
     lines.push({
       ic: '▶',
       lbl: 'playing',
-      val: `${spotifyData.value.artist} — ${spotifyData.value.track}`
+      val: `${spotifyData.value.artist} — ${spotifyData.value.track}`,
+      url: spotifyData.value.url || undefined
     })
   } else {
     lines.push({
       ic: '▶',
       lbl: 'playing',
-      val: spotifyData.value?.error ? 'unavailable' : '(K)NoW_NAME — Welcome トゥ 混沌'
+      val: spotifyData.value?.error
+        ? 'unavailable'
+        : `${SPOTIFY_FALLBACK.artist} — ${SPOTIFY_FALLBACK.track}`,
+      url: spotifyData.value?.error ? undefined : (SPOTIFY_FALLBACK.url || undefined)
     })
   }
 
@@ -295,7 +305,7 @@ const currentlyLines = computed(() => {
     let val = readingEntry.value.book
     if (readingEntry.value.author) val += ` — ${readingEntry.value.author}`
     if (readingEntry.value.chapter) val += `, ${readingEntry.value.chapter}`
-    lines.push({ ic: '📖', lbl: 'reading', val })
+    lines.push({ ic: '📖', lbl: 'reading', val, url: readingEntry.value.link || undefined })
   }
 
   if (weatherData.value) {
@@ -623,7 +633,8 @@ onBeforeUnmount(() => {
         >
           <span class="ic">{{ line.ic }}</span>
           <span class="lbl">{{ line.lbl }}</span>
-          <span class="val">{{ line.val }}</span>
+          <a v-if="line.url" :href="line.url" target="_blank" rel="noopener" class="val now-link">{{ line.val }}</a>
+          <span v-else class="val">{{ line.val }}</span>
         </div>
       </section>
     </div>

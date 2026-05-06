@@ -26,6 +26,7 @@ export default defineContentConfig({
         book: z.string(),
         author: z.string(),
         chapter: z.string().optional(),
+        link: z.string().url().optional(),
         note: z.string().optional(),
         draft: z.boolean().default(false)
       }),
