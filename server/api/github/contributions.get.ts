@@ -1,6 +1,7 @@
-import { defineEventHandler, setHeader } from 'h3'
+import { defineEventHandler, setHeader, type H3Event } from 'h3'
 
 const GITHUB_API = 'https://api.github.com/graphql'
+const GITHUB_USER_AGENT = 'nickczj-com (https://nickczj.com)'
 const CACHE_TTL = 5 * 60 * 1000
 
 interface ContributionDay {
@@ -13,7 +14,7 @@ interface ContributionWeek {
 }
 
 interface GitHubResponse {
-  data: {
+  data?: {
     viewer: {
       contributionsCollection: {
         contributionCalendar: {
@@ -23,6 +24,7 @@ interface GitHubResponse {
       }
     }
   }
+  errors?: Array<{ message?: string }>
 }
 
 interface CellData {
@@ -47,6 +49,28 @@ type Payload = SuccessPayload | ErrorPayload
 
 let cache: { data: SuccessPayload; expiresAt: number } | null = null
 let staleCache: { data: SuccessPayload } | null = null
+
+function getGitHubToken(event: H3Event): string {
+  const context = event.context as { cloudflare?: { env?: Record<string, unknown> } }
+  const token = context.cloudflare?.env?.GITHUB_TOKEN ?? process.env.GITHUB_TOKEN
+  return typeof token === 'string' ? token.trim() : ''
+}
+
+async function getGitHubError(res: Response): Promise<string> {
+  let detail = ''
+
+  try {
+    const text = await res.text()
+    if (text) {
+      const parsed = JSON.parse(text) as { message?: string; errors?: Array<{ message?: string }> }
+      detail = parsed.message || parsed.errors?.map((err) => err.message).filter(Boolean).join('; ') || ''
+    }
+  } catch {
+    detail = ''
+  }
+
+  return `GitHub API returned ${res.status}${detail ? `: ${detail}` : ''}`
+}
 
 function computeLevels(counts: number[]): [number, number, number] {
   const nonZero = counts.filter((c) => c > 0).sort((a, b) => a - b)
@@ -113,16 +137,23 @@ async function fetchContributions(token: string): Promise<SuccessPayload> {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github+json',
+      'User-Agent': GITHUB_USER_AGENT,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({ query })
   })
 
   if (!res.ok) {
-    throw new Error(`GitHub API returned ${res.status}`)
+    throw new Error(await getGitHubError(res))
   }
 
   const json = (await res.json()) as GitHubResponse
+
+  if (json.errors?.length) {
+    const error = json.errors.map((err) => err.message).filter(Boolean).join('; ')
+    throw new Error(`GitHub GraphQL error${error ? `: ${error}` : ''}`)
+  }
 
   if (!json.data?.viewer?.contributionsCollection?.contributionCalendar) {
     throw new Error('Unexpected GitHub API response shape')
@@ -168,7 +199,7 @@ export default defineEventHandler(async (event) => {
     return cache.data
   }
 
-  const token = process.env.GITHUB_TOKEN
+  const token = getGitHubToken(event)
   if (!token) {
     if (staleCache) return { ...staleCache.data, stale: true }
     return { unavailable: true, error: 'GITHUB_TOKEN not configured' } satisfies ErrorPayload
