@@ -281,7 +281,7 @@ const currentlyLines = computed(() => {
     lines.push({
       ic: '▶',
       lbl: 'playing',
-      val: spotifyData.value?.error ? 'unavailable' : 'nothing playing'
+      val: spotifyData.value?.error ? 'unavailable' : '(K)NoW_NAME — Welcome トゥ 混沌'
     })
   }
 
