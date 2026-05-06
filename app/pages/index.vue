@@ -155,6 +155,11 @@ const { data: spotifyData, refresh: refreshSpotify, status: spotifyStatus } = aw
   default: () => ({ playing: false, error: false, track: '', artist: '' })
 })
 
+// GitHub contributions
+const { data: gitHubData, refresh: refreshGitHub } = await useFetch('/api/github/contributions', {
+  default: () => ({ unavailable: true } as const)
+})
+
 // Live tick + clock — initialised on mount only to avoid hydration mismatch.
 const tick = ref(0)
 const clock = ref('--:--')
@@ -163,6 +168,7 @@ let timer: ReturnType<typeof setInterval> | null = null
 let homelabTimer: ReturnType<typeof setInterval> | null = null
 let spotifyTimer: ReturnType<typeof setInterval> | null = null
 let weatherTimer: ReturnType<typeof setInterval> | null = null
+let gitHubTimer: ReturnType<typeof setInterval> | null = null
 
 // Currently — weather (client-side, Open-Meteo)
 const WMO: Record<number, string> = {
@@ -318,6 +324,27 @@ const currentlyMeta = computed(() => {
   return n >= 4 ? 'live' : `live · ${n}/4`
 })
 
+// GitHub heatmap cells
+const gitHubCells = computed(() => {
+  const d = gitHubData.value
+  if (!d || 'unavailable' in d || !('weeks' in d)) return null
+  const cells: Array<{ w: number; d: number; lvl: number }> = []
+  for (let w = 0; w < d.weeks.length; w++) {
+    for (let day = 0; day < d.weeks[w].length; day++) {
+      cells.push({ w, d: day, lvl: d.weeks[w][day].level })
+    }
+  }
+  return cells
+})
+
+const gitHubMeta = computed(() => {
+  const d = gitHubData.value
+  if (!d || 'unavailable' in d || !('totalContributions' in d)) {
+    return 'demo · 847 commits · streak 14d'
+  }
+  return `${d.totalContributions} contributions · streak ${d.streak}d`
+})
+
 // Terminal palette
 const termOpen = ref(false)
 const yieldsForTerm = computed(() => YIELDS.map(y => ({ name: y.name, val: y.val })))
@@ -355,6 +382,10 @@ onMounted(() => {
   weatherTimer = setInterval(() => {
     fetchWeather()
   }, 300000)
+  refreshGitHub()
+  gitHubTimer = setInterval(() => {
+    refreshGitHub()
+  }, 300000)
   window.addEventListener('keydown', onKey)
 })
 
@@ -363,6 +394,7 @@ onBeforeUnmount(() => {
   if (homelabTimer) clearInterval(homelabTimer)
   if (spotifyTimer) clearInterval(spotifyTimer)
   if (weatherTimer) clearInterval(weatherTimer)
+  if (gitHubTimer) clearInterval(gitHubTimer)
   if (typeof window !== 'undefined') window.removeEventListener('keydown', onKey)
 })
 </script>
@@ -558,9 +590,9 @@ onBeforeUnmount(() => {
       <section class="card">
         <div class="card-h">
           <div class="card-title">github · last 12 months</div>
-          <div class="card-meta">demo · 847 commits · streak 14d</div>
+          <div class="card-meta">{{ gitHubMeta }}</div>
         </div>
-        <HomeHeatmap :seed="11" :cell="10" :gap="3" />
+        <HomeHeatmap :data="gitHubCells" :cell="10" :gap="3" />
         <div class="hm-legend">
           <span>less</span>
           <span class="swatches">

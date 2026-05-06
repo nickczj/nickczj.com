@@ -2,12 +2,14 @@
 import { computed } from 'vue'
 
 const props = withDefaults(defineProps<{
+  data?: Array<{ w: number; d: number; lvl: number }> | null
   seed?: number
   weeks?: number
   days?: number
   cell?: number
   gap?: number
 }>(), {
+  data: null,
   seed: 11,
   weeks: 53,
   days: 7,
@@ -26,6 +28,9 @@ function mulberry32(a: number) {
 }
 
 const cells = computed(() => {
+  if (props.data && props.data.length > 0) {
+    return props.data
+  }
   const r = mulberry32(props.seed)
   const arr: { w: number; d: number; lvl: number }[] = []
   for (let w = 0; w < props.weeks; w++) {
@@ -44,8 +49,16 @@ const cells = computed(() => {
   return arr
 })
 
-const W = computed(() => props.weeks * (props.cell + props.gap))
-const H = computed(() => props.days * (props.cell + props.gap))
+const actualWeeks = computed(() => {
+  if (props.data?.length) return Math.max(...props.data.map((c) => c.w)) + 1
+  return props.weeks
+})
+const actualDays = computed(() => {
+  if (props.data?.length) return Math.max(...props.data.map((c) => c.d)) + 1
+  return props.days
+})
+const W = computed(() => actualWeeks.value * (props.cell + props.gap))
+const H = computed(() => actualDays.value * (props.cell + props.gap))
 </script>
 
 <template>
