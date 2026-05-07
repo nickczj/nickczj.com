@@ -1,0 +1,147 @@
+/* Math definition figures with journal-style nomenclature blocks. */
+.math-def {
+  margin: 2.5rem 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--math-border);
+  border-radius: 0.625rem;
+  background: var(--math-bg);
+}
+
+.math-def__main {
+  padding: 0.5rem 1.75rem 1.5rem;
+}
+
+.math-def__main .katex-display {
+  margin: 1.5rem 0 1.25rem;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.math-def__main .katex-display::after {
+  display: none;
+}
+
+.math-def__main > p {
+  margin: 0.75rem 0 0;
+  color: var(--math-prose, rgb(63 63 70));
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+.math-def__main > p + p {
+  margin-top: 0.65rem;
+}
+
+.math-def__where {
+  position: relative;
+  padding: 1.1rem 1.75rem 1.25rem;
+  border-top: 1px solid var(--math-border);
+  background: var(--math-where-bg, rgb(244 244 245 / 0.5));
+}
+
+.math-def__where-label {
+  display: inline-block;
+  margin-bottom: 0.65rem;
+  color: var(--math-marker);
+  font-family: ui-serif, Georgia, "Times New Roman", serif;
+  font-size: 0.875rem;
+  font-style: italic;
+  letter-spacing: 0.01em;
+}
+
+.math-def__where-list ul {
+  display: grid;
+  grid-template-columns: minmax(3.5rem, auto) 1fr;
+  column-gap: 1.25rem;
+  row-gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.math-def__where-list li {
+  display: contents;
+  color: var(--math-prose, rgb(63 63 70));
+  font-size: 0.9rem;
+  line-height: 1.55;
+  cursor: default;
+  transition: color 0.15s ease;
+}
+
+.math-def__where-list li:hover {
+  color: var(--math-prose-strong, rgb(24 24 27));
+}
+
+.math-def__where-list [data-sym] {
+  justify-self: end;
+  padding-top: 0.05em;
+}
+
+.math-def__where-list [data-sym] > .katex {
+  font-size: 1em;
+}
+
+.math-def .katex .sym-q,
+.math-def .katex .sym-cao,
+.math-def .katex .sym-cvo {
+  padding: 0 2px;
+  border-radius: 3px;
+  cursor: help;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.math-def:has([data-sym="q"]:hover) .katex .sym-q,
+.math-def .katex .sym-q:hover,
+.math-def:has([data-sym="cao"]:hover) .katex .sym-cao,
+.math-def .katex .sym-cao:hover,
+.math-def:has([data-sym="cvo"]:hover) .katex .sym-cvo,
+.math-def .katex .sym-cvo:hover {
+  background: color-mix(in srgb, var(--math-accent) 18%, transparent);
+  color: var(--math-accent);
+}
+
+.math-def:has(.sym-q:hover) .math-def__where-list li:has([data-sym="q"]),
+.math-def:has(.sym-cao:hover) .math-def__where-list li:has([data-sym="cao"]),
+.math-def:has(.sym-cvo:hover) .math-def__where-list li:has([data-sym="cvo"]) {
+  color: var(--math-prose-strong, rgb(24 24 27));
+}
+
+.math-def:has(.sym-q:hover) [data-sym="q"]::before,
+.math-def:has(.sym-cao:hover) [data-sym="cao"]::before,
+.math-def:has(.sym-cvo:hover) [data-sym="cvo"]::before {
+  display: inline-block;
+  width: 3px;
+  height: 1em;
+  margin-right: 0.5rem;
+  border-radius: 2px;
+  background: var(--math-accent);
+  content: "";
+  vertical-align: -0.15em;
+}
+
+[data-theme="dark"] .math-def,
+.dark .math-def {
+  --math-prose: rgb(212 212 216);
+  --math-prose-strong: rgb(244 244 245);
+  --math-where-bg: rgb(39 39 42 / 0.4);
+}
+
+@media (max-width: 640px) {
+  .math-def__main {
+    padding: 0.25rem 1rem 1.1rem;
+  }
+
+  .math-def__where {
+    padding: 0.9rem 1rem 1rem;
+  }
+
+  .math-def__where-list ul {
+    grid-template-columns: minmax(2.75rem, auto) 1fr;
+    column-gap: 0.85rem;
+  }
+}

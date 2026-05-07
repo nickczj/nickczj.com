@@ -22,7 +22,7 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   modules: ['@nuxt/content'],
-  css: ['katex/dist/katex.min.css', '~/assets/css/katex.css'],
+  css: ['katex/dist/katex.min.css', '~/assets/css/katex.css', '~/assets/css/math-def.css'],
   content: {
     build: {
       markdown: {
@@ -34,7 +34,12 @@ export default defineNuxtConfig({
           }
         },
         rehypePlugins: {
-          'rehype-katex': {}
+          'rehype-katex': {
+            options: {
+              trust: (ctx: { command?: string }) => ctx.command === '\\htmlClass',
+              strict: 'ignore'
+            }
+          }
         }
       }
     }
