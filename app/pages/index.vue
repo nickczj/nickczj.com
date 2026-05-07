@@ -111,6 +111,7 @@ const buildEnv = computed(() => {
   const os = (runtimeConfig.public.buildOsInfo as string) || '?'
   return { node, bun, os }
 })
+const commitHash = (runtimeConfig.public.buildCommitHash as string) || '?'
 
 // Blog posts (real data)
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
@@ -424,9 +425,9 @@ onBeforeUnmount(() => {
       </div>
       <div class="row gap-6 wrap" style="justify-content: flex-end;">
         <HomePill tone="ok" :dot="true">online</HomePill>
-        <HomePill><span class="tnum">{{ clock }}</span> sgt</HomePill>
         <HomePill :tone="homelabPillTone">{{ homelabUptime }}</HomePill>
         <HomePill>v2026.1</HomePill>
+        <HomePill>{{ commitHash }}</HomePill>
         <ThemeToggle />
       </div>
     </header>

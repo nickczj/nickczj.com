@@ -15,7 +15,8 @@ export default defineNuxtConfig({
     public: {
       buildNodeVersion: process.version,
       buildBunVersion: detectBunVersion(),
-      buildOsInfo: `${os.platform()} ${os.release()}`
+      buildOsInfo: `${os.platform()} ${os.release()}`,
+      buildCommitHash: execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim()
     }
   },
   compatibilityDate: '2025-07-15',
