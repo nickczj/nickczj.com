@@ -18,7 +18,7 @@ $$
 (\htmlClass{sym-cao}{C_a\text{O}_2} - \htmlClass{sym-cvo}{C_v\text{O}_2})
 $$
 
-Maximal oxygen uptake equals cardiac output ($\dot{Q}$), i.e. how much blood your heart pumps, times the arteriovenous oxygen difference. In practice, $\dot{Q}$ expands to heart rate × stroke volume, and the a-v O₂ difference reflects how much oxygen your muscles actually strip out of that blood.
+Maximal oxygen uptake equals cardiac output ($\dot{Q}$), i.e. how much blood your heart pumps, times the arteriovenous oxygen difference. In practice, $\dot{Q}$ expands to heart rate × stroke volume, and the a-v O₂ difference reflects how much oxygen your muscles actually strip out of that blood :cite[fick1870].
 
 #where
 - [$\dot{Q}$]{data-sym="q"} — cardiac output; heart rate × stroke volume (L·min⁻¹)
@@ -26,4 +26,6 @@ Maximal oxygen uptake equals cardiac output ($\dot{Q}$), i.e. how much blood you
 - [$C_v\text{O}_2$]{data-sym="cvo"} — mixed venous oxygen content (mL O₂ per dL blood)
 ::
 
-$\text{VO}_2\text{max}$ is 
+$\text{VO}_2\text{max}$ is widely considered to be the gold standard for aerobic capacity and cardiovascular health :cite[astrand1986], but other factors also play a part, notably: :term[lactate threshold]{def="lactate-threshold"}, :term[movement economy]{def="economy"}, and :term[muscle power]{def="power"}.
+
+::references 

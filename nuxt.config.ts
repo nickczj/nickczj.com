@@ -22,7 +22,14 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   modules: ['@nuxt/content'],
-  css: ['katex/dist/katex.min.css', '~/assets/css/katex.css', '~/assets/css/math-def.css'],
+  mdc: {
+    components: {
+      map: {
+        cite: 'Cite'
+      }
+    }
+  },
+  css: ['katex/dist/katex.min.css', '~/assets/css/katex.css', '~/assets/css/math-def.css', '~/assets/css/cite.css'],
   content: {
     build: {
       markdown: {

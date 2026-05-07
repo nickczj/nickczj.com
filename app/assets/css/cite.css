@@ -1,0 +1,212 @@
+/* ── Inline citation marker ── */
+.cite {
+  position: relative;
+  display: inline;
+  text-decoration: none;
+  color: var(--link);
+  font-weight: 500;
+  cursor: help;
+}
+
+.cite sup {
+  font-size: 0.72em;
+  padding: 0 0.1em;
+  transition: color 0.15s ease;
+}
+
+.cite:hover sup,
+.cite:focus-visible sup {
+  color: var(--link-hover);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ── Citation popover ── */
+.cite__pop {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  width: max-content;
+  max-width: min(380px, calc(100vw - 2rem));
+  padding: 0.75rem 0.9rem;
+  background: rgb(24 24 27);
+  color: rgb(244 244 245);
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  font-weight: 400;
+  text-align: left;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.65rem;
+  box-shadow: 0 4px 16px -4px rgb(0 0 0 / 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 50;
+}
+
+.cite__pop::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: rgb(24 24 27);
+}
+
+.cite__pop-num {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.75rem;
+  color: var(--link);
+  padding-top: 0.05rem;
+}
+
+.cite__pop-body {
+  font-family: ui-serif, Georgia, serif;
+}
+
+.cite:hover .cite__pop,
+.cite:focus-visible .cite__pop {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+  transition-delay: 0.1s;
+}
+
+/* ── Inline term gloss ── */
+.term {
+  font-style: normal;
+  border-bottom: 1px dotted var(--muted);
+  cursor: help;
+  position: relative;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.term:hover {
+  border-bottom-color: var(--link);
+  color: var(--link);
+}
+
+.term:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 3px;
+}
+
+/* ── Term popover ── */
+.term__pop {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  width: max-content;
+  max-width: min(340px, calc(100vw - 2rem));
+  padding: 0.65rem 0.8rem;
+  background: var(--bg);
+  color: var(--prose);
+  border: 1px solid var(--rule);
+  border-radius: 0.5rem;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  font-weight: 400;
+  text-align: left;
+  box-shadow: 0 4px 16px -4px rgb(0 0 0 / 0.15);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 50;
+}
+
+.term__pop::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--rule);
+}
+
+.term:hover .term__pop,
+.term:focus-visible .term__pop {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+  transition-delay: 0.1s;
+}
+
+/* ── References list ── */
+.references {
+  margin-top: 2.5rem;
+  border-top: 1px solid var(--rule);
+  padding-top: 1.25rem;
+}
+
+.references__heading {
+  color: var(--heading);
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+}
+
+.references ol {
+  margin: 0;
+  padding-left: 1.5rem;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: var(--lede);
+}
+
+.references li {
+  margin-bottom: 0.45rem;
+}
+
+.references li:target {
+  background: color-mix(in srgb, var(--link) 10%, transparent);
+  border-radius: 0.25rem;
+  padding: 0.1rem 0.35rem;
+  margin-left: -0.35rem;
+}
+
+/* ── Dark mode ── */
+.dark .cite__pop {
+  background: rgb(244 244 245);
+  color: rgb(24 24 27);
+}
+
+.dark .cite__pop::after {
+  border-top-color: rgb(244 244 245);
+}
+
+.dark .term__pop {
+  box-shadow: 0 4px 16px -4px rgb(0 0 0 / 0.4);
+}
+
+/* ── Mobile: tap-to-toggle ── */
+@media (hover: none) {
+  .cite__pop,
+  .term__pop {
+    display: none;
+  }
+
+  .cite.is-open .cite__pop,
+  .term.is-open .term__pop {
+    display: grid;
+    opacity: 1;
+    pointer-events: auto;
+    position: fixed;
+    bottom: 1rem;
+    left: 1rem;
+    right: 1rem;
+    transform: none;
+    max-width: none;
+  }
+
+  .cite.is-open .cite__pop::after,
+  .term.is-open .term__pop::after {
+    display: none;
+  }
+}
