@@ -71,7 +71,7 @@ onMounted(() => {
   --text: #d6dbd4;
   --bg: #1a1d1b;
   --bg-gradient: linear-gradient(180deg, rgba(0, 0, 0, 0.35), rgba(26, 29, 27, 0.98)), #1a1d1b;
-  --link: #58b9c2;
+  --link: #d66b5d;
   --link-underline: rgba(88, 185, 194, 0.35);
   --link-hover: #d4945a;
   --link-hover-underline: rgba(212, 148, 90, 0.55);
