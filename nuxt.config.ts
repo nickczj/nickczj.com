@@ -21,7 +21,7 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   modules: ['@nuxt/content'],
-  css: ['katex/dist/katex.min.css'],
+  css: ['katex/dist/katex.min.css', '~/assets/css/katex.css'],
   content: {
     build: {
       markdown: {

@@ -56,6 +56,9 @@ onMounted(() => {
   --rule: rgba(38, 48, 44, 0.14);
   --rule-footer: rgba(38, 48, 44, 0.12);
   --tag-border: rgba(20, 91, 99, 0.18);
+  --code-bg: rgba(38, 48, 44, 0.055);
+  --code-border: rgba(38, 48, 44, 0.16);
+  --code-text: #26302c;
 
   color-scheme: light;
   color: var(--text);
@@ -81,6 +84,9 @@ onMounted(() => {
   --rule: rgba(255, 255, 255, 0.08);
   --rule-footer: rgba(255, 255, 255, 0.08);
   --tag-border: rgba(88, 185, 194, 0.25);
+  --code-bg: rgba(255, 255, 255, 0.045);
+  --code-border: rgba(255, 255, 255, 0.12);
+  --code-text: #d6dbd4;
 
   color-scheme: dark;
 }
@@ -292,18 +298,19 @@ p {
   line-height: 1.7;
 }
 
-.prose :where(.katex-display) {
+.prose :where(pre) {
   margin: 1.25rem 0 1.5rem;
   padding: 1rem 1.1rem;
   overflow-x: auto;
-  border: 1px solid var(--rule);
+  border: 1px solid var(--code-border);
   border-radius: 8px;
-  background: rgba(127, 127, 127, 0.08);
-  text-align: left;
+  background: var(--code-bg);
+  color: var(--code-text);
+  font: 0.9rem/1.65 ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
 }
 
-.prose :where(.katex-display > .katex) {
-  font-size: 1.05em;
+.prose :where(pre code) {
+  font: inherit;
 }
 
 .back-link {
