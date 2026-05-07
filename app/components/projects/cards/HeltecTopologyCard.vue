@@ -48,19 +48,18 @@
 <style scoped>
 .topology-card {
   width: 100%;
-  aspect-ratio: 16 / 9;
   background: var(--bg);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  border-bottom: 1px solid var(--rule);
 }
 
 .topology-svg {
   width: 100%;
-  height: 100%;
-  padding: 4px 8px;
+  height: auto;
+  padding: 0.85rem 1rem;
   box-sizing: border-box;
+  display: block;
 }
 </style>

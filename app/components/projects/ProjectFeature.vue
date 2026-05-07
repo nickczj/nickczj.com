@@ -10,8 +10,8 @@ defineProps<{
 </script>
 
 <template>
-  <article class="project-card">
-    <div v-if="visual || project.image" class="project-card-visual">
+  <article class="project-feature">
+    <div v-if="visual || project.image" class="project-feature-visual">
       <component :is="visual" v-if="visual" />
       <img
         v-else-if="project.image"
@@ -20,17 +20,23 @@ defineProps<{
         class="project-card-image"
       />
     </div>
-    <div class="project-card-body">
-      <div class="project-card-header">
-        <h2 class="project-card-title">
-          <NuxtLink :to="`/projects/${project.slug}`">{{ project.title }}</NuxtLink>
-        </h2>
+
+    <div class="project-feature-body">
+      <div class="project-feature-kicker">
+        <span>Featured project</span>
         <StatusBadge :status="project.status" />
       </div>
-      <p class="project-card-desc">{{ project.description }}</p>
+
+      <h2 class="project-feature-title">
+        <NuxtLink :to="`/projects/${project.slug}`">{{ project.title }}</NuxtLink>
+      </h2>
+
+      <p class="project-feature-desc">{{ project.description }}</p>
+
       <div v-if="project.techs.length" class="project-card-techs">
         <span v-for="tech in project.techs" :key="tech" class="tech-tag">{{ tech }}</span>
       </div>
+
       <NuxtLink :to="`/projects/${project.slug}`" class="project-card-link">Open project</NuxtLink>
     </div>
   </article>

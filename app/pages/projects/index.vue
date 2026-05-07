@@ -3,6 +3,7 @@ import type { Component } from 'vue'
 import '~/assets/projects.css'
 import { publishedProjects } from '~/data/projects'
 import ProjectCard from '~/components/projects/ProjectCard.vue'
+import ProjectFeature from '~/components/projects/ProjectFeature.vue'
 import HomelabTopologyCard from '~/components/projects/cards/HomelabTopologyCard.vue'
 import FireMathCard from '~/components/projects/cards/FireMathCard.vue'
 import HeltecTopologyCard from '~/components/projects/cards/HeltecTopologyCard.vue'
@@ -14,6 +15,9 @@ const cardVisuals: Record<string, Component> = {
   'esp32-heltec-wireless-paper': HeltecTopologyCard,
   'esp32-eink-spectra6': EinkTopologyCard,
 }
+
+const featuredProject = publishedProjects.find((project) => project.slug === 'homelab')
+const secondaryProjects = publishedProjects.filter((project) => project.slug !== 'homelab')
 
 useSeoMeta({
   title: 'Projects | nickczj.com',
@@ -31,13 +35,21 @@ useSeoMeta({
       </p>
     </header>
 
-    <div v-if="publishedProjects.length" class="project-grid">
-      <ProjectCard
-        v-for="project in publishedProjects"
-        :key="project.slug"
-        :project="project"
-        :visual="cardVisuals[project.slug]"
+    <div v-if="featuredProject || secondaryProjects.length" class="project-showcase">
+      <ProjectFeature
+        v-if="featuredProject"
+        :project="featuredProject"
+        :visual="cardVisuals[featuredProject.slug]"
       />
+
+      <div v-if="secondaryProjects.length" class="project-grid">
+        <ProjectCard
+          v-for="project in secondaryProjects"
+          :key="project.slug"
+          :project="project"
+          :visual="cardVisuals[project.slug]"
+        />
+      </div>
     </div>
 
     <div v-else class="empty-state">

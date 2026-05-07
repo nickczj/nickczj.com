@@ -24,13 +24,14 @@ import LatexBlock from '~/components/projects/LatexBlock.vue'
 <style scoped>
 .math-card {
   width: 100%;
-  aspect-ratio: 16 / 9;
   background: var(--bg);
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 1rem;
   overflow: hidden;
-  border-bottom: 1px solid var(--rule);
+  box-sizing: border-box;
+  user-select: text;
 }
 
 .math-formulas {
@@ -44,8 +45,9 @@ import LatexBlock from '~/components/projects/LatexBlock.vue'
 
 .math-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.6rem;
+  min-width: 0;
 }
 
 .math-label {
@@ -61,11 +63,14 @@ import LatexBlock from '~/components/projects/LatexBlock.vue'
 .math-row :deep(.latex-display) {
   margin: 0;
   flex: 1;
+  min-width: 0;
   text-align: left;
   font-size: 0.75rem;
+  user-select: text;
 }
 
 .math-row :deep(.katex) {
   font-size: 0.85em;
+  user-select: text;
 }
 </style>
