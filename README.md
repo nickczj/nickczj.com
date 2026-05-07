@@ -26,9 +26,12 @@ Content lives in `content/` as markdown files managed by Nuxt Content v3:
 
 - `content/blog/*.md` — blog posts (title, description, date, tags, draft)
 - `content/now/*.md` — monthly focus entries (title, description, date, summary)
+- `content/currently/*.md` — currently-reading entries (book, author, chapter, link)
 - `content/pages/*.md` — standalone pages (uses, colophon)
 
-The homepage queries blog and now collections directly. Draft posts are filtered from public listings.
+Projects are managed outside Nuxt Content via `app/data/projects.ts` with detail pages under `app/pages/projects/` and interactive card visuals in `app/components/projects/cards/`.
+
+The homepage queries blog, now, and currently collections, plus live API data from homelab status, GitHub contributions, and Spotify. Draft posts are filtered from public listings.
 
 ## Homelab Status
 

@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last updated: 2026-05-05
+Last updated: 2026-05-07
 
 ## Legend
 
@@ -25,16 +25,17 @@ Last updated: 2026-05-05
 - [x] `/now` — now index + `/now/[period]` entry pages
 - [x] `/uses` — hardware/software setup page
 - [x] `/colophon` — site stack documentation
-- [ ] `/projects` — standalone route (currently just a homepage anchor)
+- [x] `/projects` — standalone route with index + 4 detail pages (homelab, fire-finance-math, esp32-heltec-wireless-paper, esp32-eink-spectra6)
+- [ ] `/archive` — version showcase page for past iterations of nickczj.com
 
 ## Content
 
 - [x] Blog collection schema and 3 draft outlines (Vesto caching, CPF math, GoReleaser casks)
 - [x] Now collection with May 2026 entry
 - [x] Pages collection (colophon written, uses mostly TODO)
-- [~] Blog posts need writing (all 3 are `draft: true`, outlines only)
+- [~] Blog posts need writing (improving-cardio.md published, 2 remain `draft: true` outlines)
 - [~] `/uses` page has TODOs for every section (hardware, OS, editor, dotfiles, services)
-- [ ] `/projects` content (Vesto, homelab, older work with screenshots)
+- [x] `/projects` content — 4 published projects with screenshots and interactive topology cards
 
 ## Homelab Status Integration
 
@@ -66,10 +67,10 @@ Last updated: 2026-05-05
 ## Polish & Extras
 
 - [x] Terminal overlay (`` ` `` or Cmd+K) with commands: help, ls, cd, whoami, cv, uptime, yields, clear
-- [x] GitHub contribution heatmap (currently seeded pseudo-random, not real data)
+- [x] GitHub contribution heatmap (wired to GitHub GraphQL API with 5-minute edge cache)
 - [ ] Terminal-style 404 page
 - [ ] Konami-code easter egg
-- [ ] Real GitHub contribution data for heatmap
+- [x] Real GitHub contribution data for heatmap (integrated with GitHub GraphQL API, deployed)
 - [ ] `/bookmarks` or `/linkroll` page
 
 ---
@@ -78,5 +79,5 @@ Last updated: 2026-05-05
 
 1. **Write blog posts** — promote the 3 drafts from outlines to published posts.
 2. **Fill in `/uses`** — replace all TODOs with real hardware, software, and setup details.
-3. **Build `/projects`** — standalone route with Vesto, homelab, and older projects (screenshots, not just text).
+3. **Version archive** — build `/archive` page showcasing past iterations of nickczj.com (v1, v2, v3).
 4. **Singapore finance tools** — start with CPF calculator (highest SEO value, validates Vesto logic publicly).
