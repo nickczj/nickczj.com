@@ -22,6 +22,22 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   modules: ['@nuxt/content'],
   css: ['katex/dist/katex.min.css'],
+  content: {
+    build: {
+      markdown: {
+        remarkPlugins: {
+          'remark-math': {
+            options: {
+              singleDollarTextMath: true
+            }
+          }
+        },
+        rehypePlugins: {
+          'rehype-katex': {}
+        }
+      }
+    }
+  },
   app: {
     head: {
       meta: [

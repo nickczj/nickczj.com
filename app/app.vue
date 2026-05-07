@@ -292,6 +292,20 @@ p {
   line-height: 1.7;
 }
 
+.prose :where(.katex-display) {
+  margin: 1.25rem 0 1.5rem;
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: rgba(127, 127, 127, 0.08);
+  text-align: left;
+}
+
+.prose :where(.katex-display > .katex) {
+  font-size: 1.05em;
+}
+
 .back-link {
   font-size: 0.92rem;
   font-weight: 650;
