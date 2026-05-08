@@ -78,7 +78,7 @@ type HomelabStatusResponse = {
   fetchedAt: string
   stale: boolean
   unavailable: boolean
-  source: 'd1' | 'memory' | 'none'
+  source: 'd1' | 'memory' | 'fixture' | 'none'
 }
 
 const DEFAULT_FLEET_NODES = [

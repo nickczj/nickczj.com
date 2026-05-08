@@ -12,6 +12,7 @@ import {
   writeHomelabSnapshotToD1,
   writeHomelabSnapshotToMemory
 } from '../server/utils/homelab-status'
+import { buildHomelabFixtureResponse } from '../server/utils/homelab-status-fixtures'
 
 const payload: HomelabStatusPayload = {
   version: 1,
@@ -178,6 +179,29 @@ describe('homelab status structured storage', () => {
     expect(response.nodes.find((node) => node.id === 'pi5')?.history.map((sample) => sample.kpis.cpu)).toEqual([11])
     expect(response.services.find((service) => service.nodeId === 'pi5' && service.name === 'pihole')?.state).toBe('up')
     expect(response.stale).toBe(false)
+  })
+})
+
+describe('homelab status fixtures', () => {
+  test('builds a live fleet fixture for local viewing', () => {
+    const response = buildHomelabFixtureResponse('fleet', new Date('2026-05-05T00:02:30.000Z'))
+
+    expect(response.source).toBe('fixture')
+    expect(response.unavailable).toBe(false)
+    expect(response.stale).toBe(false)
+    expect(response.nodes.map((node) => node.id)).toEqual(['nas', 'pi5', 'ha-yellow'])
+    expect(response.services.find((service) => service.nodeId === 'ha-yellow' && service.name === 'home-assistant')?.state).toBe('up')
+  })
+
+  test('builds stale and down fixture states', () => {
+    const now = new Date('2026-05-05T00:02:30.000Z')
+    const stale = buildHomelabFixtureResponse('stale', now)
+    const down = buildHomelabFixtureResponse('down', now)
+
+    expect(stale.stale).toBe(true)
+    expect(stale.nodes.every((node) => node.stale)).toBe(true)
+    expect(down.nodes.find((node) => node.id === 'nas')?.kpis.find((kpi) => kpi.key === 'cpu')?.tone).toBe('bad')
+    expect(down.services.find((service) => service.nodeId === 'nas' && service.name === 'immich_server')?.state).toBe('down')
   })
 })
 

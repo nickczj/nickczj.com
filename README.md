@@ -52,6 +52,20 @@ NAS / Pi 5 / HA Yellow (systemd timer, every 2 min)
 - **Node identity:** set `HOMELAB_NODE_ID` (`nas`, `pi5`, `ha-yellow`) and optional `HOMELAB_NODE_ROLE` on each pusher
 - **D1 schema:** `migrations/0002_structured_homelab_status.sql` + `migrations/0003_fleet_homelab_status.sql` — node-keyed `metrics` and `service_status` tables
 
+### Local status fixtures
+
+`bun run dev` shows a mock fleet response automatically when no D1 binding or in-memory pusher data exists. Override the local state with:
+
+```
+HOMELAB_STATUS_FIXTURE=fleet bun run dev
+HOMELAB_STATUS_FIXTURE=partial bun run dev
+HOMELAB_STATUS_FIXTURE=stale bun run dev
+HOMELAB_STATUS_FIXTURE=down bun run dev
+HOMELAB_STATUS_FIXTURE=none bun run dev
+```
+
+The pusher still works locally through the memory fallback; once a local push is received, it takes precedence over the automatic dev fixture.
+
 ## Deployment
 
 ### Cloudflare Pages

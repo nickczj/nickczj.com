@@ -10,7 +10,7 @@ export const HOMELAB_TONES = ['ok', 'warn', 'bad'] as const
 export type HomelabKpiKey = typeof HOMELAB_KPI_KEYS[number]
 export type HomelabServiceState = typeof HOMELAB_SERVICE_STATES[number]
 export type HomelabTone = typeof HOMELAB_TONES[number]
-export type HomelabStatusSource = 'd1' | 'memory' | 'none'
+export type HomelabStatusSource = 'd1' | 'memory' | 'fixture' | 'none'
 
 export type HomelabNode = {
   id: string
