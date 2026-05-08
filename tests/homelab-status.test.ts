@@ -15,7 +15,7 @@ import {
 
 const payload: HomelabStatusPayload = {
   version: 1,
-  node: { name: 'homelab-v3', uptimeSeconds: 123456 },
+  node: { id: 'nas', name: 'homelab-v3', role: 'storage + containers', uptimeSeconds: 123456 },
   kpis: [
     { key: 'cpu', label: 'cpu', unit: '%', value: 23.456, window: '1m', tone: 'ok' },
     { key: 'mem', label: 'mem', unit: '%', value: 70, window: '1m', tone: 'ok' },
@@ -33,8 +33,22 @@ describe('homelab status validation', () => {
     const result = validateHomelabPayload(payload)
     expect(result.ok).toBe(true)
     if (result.ok) {
+      expect(result.value.node.id).toBe('nas')
       expect(result.value.kpis[0]?.value).toBe(23.46)
       expect(result.value.services[0]?.state).toBe('up')
+    }
+  })
+
+  test('accepts legacy node payloads without id and role', () => {
+    const result = validateHomelabPayload({
+      ...payload,
+      node: { name: 'HomeLab V3', uptimeSeconds: 123 }
+    })
+
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.value.node.id).toBe('homelab-v3')
+      expect(result.value.node.role).toBe('')
     }
   })
 
@@ -80,7 +94,7 @@ describe('homelab status structured storage', () => {
     writeHomelabSnapshotToMemory(payload, new Date('2026-05-05T00:00:00.000Z'))
     writeHomelabSnapshotToMemory({
       ...payload,
-      node: { ...payload.node, uptimeSeconds: 200 },
+        node: { ...payload.node, uptimeSeconds: 200 },
       kpis: payload.kpis.map((kpi) => kpi.key === 'cpu' ? { ...kpi, value: 55 } : kpi),
       services: [
         { name: 'traefik', state: 'up', detail: 'up' },
@@ -122,8 +136,10 @@ describe('homelab status structured storage', () => {
     expect(db.metrics).toHaveLength(2)
     expect(db.services).toHaveLength(4)
     expect(db.metrics[1]?.cpu_pct).toBe(88)
+    expect(db.metrics[1]?.node_id).toBe('nas')
     expect(db.services.find((service) => service.ts === 1777939260 && service.service === 'jellyfin')).toEqual({
       ts: 1777939260,
+      node_id: 'nas',
       service: 'jellyfin',
       state: 'down'
     })
@@ -132,6 +148,36 @@ describe('homelab status structured storage', () => {
     expect(snapshot?.data.node.uptimeSeconds).toBe(222)
     expect(snapshot?.history.map((sample) => sample.kpis.cpu)).toEqual([23.46, 88])
     expect(snapshot?.data.services.find((service) => service.name === 'jellyfin')?.state).toBe('down')
+  })
+
+  test('D1 adapter aggregates independent node snapshots', async () => {
+    const db = new FakeD1()
+    await writeHomelabSnapshotToD1(db, payload, new Date('2026-05-05T00:00:00.000Z'))
+    await writeHomelabSnapshotToD1(db, {
+      ...payload,
+      node: { id: 'pi5', name: 'pi5', role: 'edge services', uptimeSeconds: 100 },
+      kpis: payload.kpis.map((kpi) => kpi.key === 'cpu' ? { ...kpi, value: 11 } : kpi),
+      services: [
+        { name: 'pihole', state: 'up', detail: 'up' }
+      ]
+    }, new Date('2026-05-05T00:01:00.000Z'))
+    await writeHomelabSnapshotToD1(db, {
+      ...payload,
+      node: { ...payload.node, uptimeSeconds: 260 },
+      kpis: payload.kpis.map((kpi) => kpi.key === 'cpu' ? { ...kpi, value: 55 } : kpi)
+    }, new Date('2026-05-05T00:02:00.000Z'))
+
+    const response = buildHomelabResponse(
+      await readHomelabSnapshotFromD1(db),
+      'd1',
+      new Date('2026-05-05T00:02:30.000Z')
+    )
+
+    expect(response.nodes.map((node) => node.id)).toEqual(['nas', 'pi5'])
+    expect(response.nodes.find((node) => node.id === 'nas')?.history.map((sample) => sample.kpis.cpu)).toEqual([23.46, 55])
+    expect(response.nodes.find((node) => node.id === 'pi5')?.history.map((sample) => sample.kpis.cpu)).toEqual([11])
+    expect(response.services.find((service) => service.nodeId === 'pi5' && service.name === 'pihole')?.state).toBe('up')
+    expect(response.stale).toBe(false)
   })
 })
 
@@ -151,18 +197,23 @@ class FakeD1 implements HomelabD1Database {
         return null as T | null
       },
       async all<T>() {
+        if (query.includes('FROM service_status')) {
+          const latestMetricTs = new Map<string, number>()
+          for (const row of db.metrics) {
+            const nodeId = row.node_id ?? 'homelab'
+            const current = latestMetricTs.get(nodeId)
+            if (!current || row.ts > current) latestMetricTs.set(nodeId, row.ts)
+          }
+          return {
+            results: db.services
+              .filter((row) => latestMetricTs.get(row.node_id ?? 'homelab') === row.ts)
+              .sort((a, b) => (a.node_id ?? '').localeCompare(b.node_id ?? '') || a.service.localeCompare(b.service)) as T[]
+          }
+        }
+
         if (query.includes('FROM metrics')) {
           const limit = Number(this.values[0] ?? 60)
           return { results: [...db.metrics].sort((a, b) => b.ts - a.ts).slice(0, limit) as T[] }
-        }
-
-        if (query.includes('FROM service_status')) {
-          const latest = new Map<string, HomelabServiceRow>()
-          for (const row of db.services) {
-            const current = latest.get(row.service)
-            if (!current || row.ts > current.ts) latest.set(row.service, row)
-          }
-          return { results: [...latest.values()].sort((a, b) => a.service.localeCompare(b.service)) as T[] }
         }
 
         return { results: [] as T[] }
@@ -171,26 +222,28 @@ class FakeD1 implements HomelabD1Database {
         if (query.startsWith('INSERT INTO metrics')) {
           const row: HomelabMetricRow = {
             ts: Number(this.values[0]),
-            cpu_pct: this.values[1] as number | null,
-            mem_pct: this.values[2] as number | null,
-            temp_c: this.values[3] as number | null,
-            power_w: this.values[4] as number | null,
-            load_1m: this.values[5] as number | null,
-            meta_json: String(this.values[6])
+            node_id: String(this.values[1]),
+            cpu_pct: this.values[2] as number | null,
+            mem_pct: this.values[3] as number | null,
+            temp_c: this.values[4] as number | null,
+            power_w: this.values[5] as number | null,
+            load_1m: this.values[6] as number | null,
+            meta_json: String(this.values[7])
           }
-          db.metrics = [...db.metrics.filter((metric) => metric.ts !== row.ts), row].sort((a, b) => a.ts - b.ts)
+          db.metrics = [...db.metrics.filter((metric) => !(metric.ts === row.ts && metric.node_id === row.node_id)), row].sort((a, b) => a.ts - b.ts)
         }
 
         if (query.startsWith('INSERT INTO service_status')) {
           const row: HomelabServiceRow = {
             ts: Number(this.values[0]),
-            service: String(this.values[1]),
-            state: this.values[2] as HomelabServiceRow['state']
+            node_id: String(this.values[1]),
+            service: String(this.values[2]),
+            state: this.values[3] as HomelabServiceRow['state']
           }
           db.services = [
-            ...db.services.filter((service) => !(service.ts === row.ts && service.service === row.service)),
+            ...db.services.filter((service) => !(service.ts === row.ts && service.node_id === row.node_id && service.service === row.service)),
             row
-          ].sort((a, b) => a.ts - b.ts || a.service.localeCompare(b.service))
+          ].sort((a, b) => a.ts - b.ts || (a.node_id ?? '').localeCompare(b.node_id ?? '') || a.service.localeCompare(b.service))
         }
 
         if (query.startsWith('DELETE FROM metrics')) {

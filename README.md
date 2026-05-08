@@ -35,13 +35,13 @@ The homepage queries blog, now, and currently collections, plus live API data fr
 
 ## Homelab Status
 
-Live system metrics from the homelab NAS displayed on the homepage via a push-based architecture:
+Live system metrics from homelab nodes displayed on the homepage via a push-based architecture:
 
 ```
-NAS (systemd timer, every 2 min)
+NAS / Pi 5 / HA Yellow (systemd timer, every 2 min)
   → POST /api/_status/ingest (Bearer token)
-    → D1 (metrics + service_status tables)
-      → GET /api/status (public, 30s cache)
+    → D1 (node-keyed metrics + service_status tables)
+      → GET /api/status (public, 30s cache, fleet response)
         → Homepage (polls every 30s)
 ```
 
@@ -49,7 +49,8 @@ NAS (systemd timer, every 2 min)
 - **Ingest endpoint:** `server/api/_status/ingest.post.ts` — validates payload, writes to D1
 - **Read endpoint:** `server/api/status.get.ts` — public, returns latest snapshot + history
 - **Core logic:** `server/utils/homelab-status.ts` — types, validation, D1 read/write, memory fallback
-- **D1 schema:** `migrations/0002_structured_homelab_status.sql` — `metrics` and `service_status` tables
+- **Node identity:** set `HOMELAB_NODE_ID` (`nas`, `pi5`, `ha-yellow`) and optional `HOMELAB_NODE_ROLE` on each pusher
+- **D1 schema:** `migrations/0002_structured_homelab_status.sql` + `migrations/0003_fleet_homelab_status.sql` — node-keyed `metrics` and `service_status` tables
 
 ## Deployment
 

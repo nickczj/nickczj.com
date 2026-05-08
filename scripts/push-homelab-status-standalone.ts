@@ -36,7 +36,9 @@ type HomelabService = {
 type HomelabStatusPayload = {
   version: 1
   node: {
+    id: string
     name: string
+    role: string
     uptimeSeconds: number
   }
   kpis: HomelabKpi[]
@@ -56,6 +58,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function cleanString(value: unknown, maxLength: number): string {
   if (typeof value !== 'string') return ''
   return value.trim().slice(0, maxLength)
+}
+
+function cleanNodeId(value: unknown): string {
+  return cleanString(value, 64)
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 32)
 }
 
 function cleanFiniteNumber(value: unknown): number | null {
@@ -113,8 +123,11 @@ function validateHomelabPayload(input: unknown): ValidationResult {
 
   if (!isRecord(input.node)) return { ok: false, error: 'node must be an object' }
   const nodeName = cleanString(input.node.name, 64)
+  const nodeId = cleanNodeId(input.node.id) || cleanNodeId(nodeName)
+  const nodeRole = cleanString(input.node.role, 48)
   const uptimeSeconds = cleanNonNegativeNumber(input.node.uptimeSeconds)
   if (!nodeName) return { ok: false, error: 'node.name is required' }
+  if (!nodeId) return { ok: false, error: 'node.id is invalid' }
   if (uptimeSeconds === null) return { ok: false, error: 'node.uptimeSeconds must be a non-negative number' }
 
   if (!Array.isArray(input.kpis) || input.kpis.length < 1 || input.kpis.length > 8) {
@@ -170,7 +183,7 @@ function validateHomelabPayload(input: unknown): ValidationResult {
     ok: true,
     value: {
       version: 1,
-      node: { name: nodeName, uptimeSeconds },
+      node: { id: nodeId, name: nodeName, role: nodeRole, uptimeSeconds },
       kpis,
       services
     }
@@ -244,7 +257,9 @@ async function collectHomelabStatus(): Promise<HomelabStatusPayload> {
   return {
     version: 1,
     node: {
-      name: process.env.HOMELAB_NODE_NAME || hostname(),
+      id: nodeId(),
+      name: nodeName(),
+      role: process.env.HOMELAB_NODE_ROLE || '',
       uptimeSeconds
     },
     kpis,
@@ -458,8 +473,25 @@ function getServiceNames() {
     .filter(Boolean)
 }
 
+function nodeName() {
+  return process.env.HOMELAB_NODE_NAME || hostname()
+}
+
+function nodeId() {
+  return normalizeNodeId(process.env.HOMELAB_NODE_ID || nodeName())
+}
+
 function normalizeContainerName(value: unknown) {
   return typeof value === 'string' ? value.replace(/^\//, '') : ''
+}
+
+function normalizeNodeId(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 32) || 'homelab'
 }
 
 function toneForPercent(value: number | null) {

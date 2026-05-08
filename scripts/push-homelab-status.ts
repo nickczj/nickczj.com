@@ -80,7 +80,9 @@ export async function collectHomelabStatus(): Promise<HomelabStatusPayload> {
   return {
     version: 1,
     node: {
-      name: process.env.HOMELAB_NODE_NAME || hostname(),
+      id: nodeId(),
+      name: nodeName(),
+      role: process.env.HOMELAB_NODE_ROLE || '',
       uptimeSeconds
     },
     kpis,
@@ -295,8 +297,25 @@ function getServiceNames() {
     .filter(Boolean)
 }
 
+function nodeName() {
+  return process.env.HOMELAB_NODE_NAME || hostname()
+}
+
+function nodeId() {
+  return normalizeNodeId(process.env.HOMELAB_NODE_ID || nodeName())
+}
+
 function normalizeContainerName(value: unknown) {
   return typeof value === 'string' ? value.replace(/^\//, '') : ''
+}
+
+function normalizeNodeId(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 32) || 'homelab'
 }
 
 function toneForPercent(value: number | null) {

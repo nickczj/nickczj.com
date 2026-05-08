@@ -10,6 +10,14 @@ const props = defineProps<{
       node: { name: string; uptimeSeconds: number }
       services: { state: 'up' | 'slow' | 'down' }[]
     } | null
+    nodes?: {
+      id: string
+      name: string
+      uptimeSeconds: number
+      stale: boolean
+      services: { state: 'up' | 'slow' | 'down' }[]
+    }[]
+    services?: { state: 'up' | 'slow' | 'down' }[]
     stale: boolean
     unavailable: boolean
     updatedAt: string | null
@@ -106,15 +114,19 @@ function formatHomelabUptime() {
   const status = props.homelabStatus
   if (!status?.data || status.unavailable) return 'homelab status unavailable'
 
-  const down = status.data.services.filter(s => s.state === 'down').length
-  const slow = status.data.services.filter(s => s.state === 'slow').length
+  const nodes = status.nodes ?? []
+  const services = status.services?.length ? status.services : status.data.services
+  const down = services.filter(s => s.state === 'down').length
+  const slow = services.filter(s => s.state === 'slow').length
   const serviceState =
     down > 0 ? `${down} down` :
     slow > 0 ? `${slow} slow` :
     'all services nominal'
-  const freshness = status.stale ? 'stale' : 'live'
+  const freshness = nodes.length
+    ? `${nodes.filter((node) => !node.stale).length}/${nodes.length} nodes live`
+    : status.stale ? 'stale' : 'live'
 
-  return `${status.data.node.name} ${formatDuration(status.data.node.uptimeSeconds)} · ${serviceState} · ${freshness}`
+  return `homelab ${freshness} · ${serviceState} · primary ${status.data.node.name} ${formatDuration(status.data.node.uptimeSeconds)}`
 }
 
 function formatDuration(seconds: number | undefined) {

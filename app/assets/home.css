@@ -198,35 +198,89 @@
   gap: var(--gap-grid);
   margin-bottom: var(--gap-grid);
 }
-.home-shell .kpi-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr);
+.home-shell .node-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 14px;
 }
-.home-shell .kpi {
+.home-shell .node-tile {
   background: var(--bg);
   border: 1px solid var(--rule);
   border-radius: var(--r-md);
-  padding: 12px 12px 10px;
+  padding: 11px 12px 10px;
   position: relative;
   overflow: hidden;
+  min-width: 0;
 }
-.home-shell .kpi-label {
+.home-shell .node-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--accent-2);
+}
+.home-shell .node-tile.warn::before { background: var(--warn); }
+.home-shell .node-tile.bad::before { background: var(--bad); }
+.home-shell .node-tile-h {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin-bottom: 5px;
+}
+.home-shell .node-name {
+  color: var(--ink);
+  font: 650 13px/1 var(--mono);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.home-shell .node-status {
   font: 500 10.5px/1 var(--mono);
   color: var(--ink-3);
   text-transform: uppercase; letter-spacing: 0.06em;
-  margin-bottom: 6px;
-  display: flex; align-items: center; justify-content: space-between;
+  white-space: nowrap;
 }
-.home-shell .kpi-value {
-  font: 600 24px/1 var(--sans);
-  letter-spacing: -0.01em;
-  font-feature-settings: 'tnum', 'cv11';
+.home-shell .node-tile.warn .node-status { color: var(--warn); }
+.home-shell .node-tile.bad .node-status { color: var(--bad); }
+.home-shell .node-role {
+  color: var(--ink-2);
+  font: 500 12px/1.25 var(--sans);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.home-shell .kpi-value .unit { font-size: 13px; color: var(--ink-3); margin-left: 1px; font-weight: 500; }
-.home-shell .kpi-spark { margin-top: 8px; height: 22px; }
-.home-shell .kpi.warn .kpi-value { color: var(--warn); }
-.home-shell .kpi.bad .kpi-value { color: var(--bad); }
+.home-shell .node-meta {
+  color: var(--ink-3);
+  font-size: 11px;
+  margin-top: 4px;
+}
+.home-shell .metric-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 10px;
+}
+.home-shell .metric-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 4px 6px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--bg-2) 55%, var(--bg));
+  color: var(--ink-3);
+  font: 500 10.5px/1 var(--mono);
+  min-width: 0;
+}
+.home-shell .metric-chip b {
+  color: var(--ink);
+  font-weight: 650;
+}
+.home-shell .metric-chip.warn b { color: var(--warn); }
+.home-shell .metric-chip.bad b { color: var(--bad); }
+.home-shell .metric-chip span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 /* services list */
 .home-shell .svc-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -237,9 +291,12 @@
   border: 1px solid var(--rule);
   border-radius: var(--r-sm);
   font: 500 12px/1 var(--mono);
+  min-width: 0;
+  gap: 10px;
 }
-.home-shell .svc .name { color: var(--ink); }
-.home-shell .svc .stat { color: var(--ink-3); font-size: 11px; display: inline-flex; gap: 5px; align-items: center; }
+.home-shell .svc .row { min-width: 0; }
+.home-shell .svc .name { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-shell .svc .stat { color: var(--ink-3); font-size: 11px; display: inline-flex; gap: 5px; align-items: center; white-space: nowrap; }
 .home-shell .svc .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-2); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-2) 18%, transparent); }
 .home-shell .svc.warn .dot { background: var(--warn); box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 18%, transparent); }
 .home-shell .svc.warn .stat { color: var(--warn); }
@@ -469,7 +526,7 @@
 @media (max-width: 900px) {
   .home-shell { padding: 16px 16px 32px; }
   .home-shell .hero-grid { grid-template-columns: 1fr; }
-  .home-shell .kpi-grid  { grid-template-columns: repeat(2, 1fr); }
+  .home-shell .node-grid { grid-template-columns: 1fr; }
   .home-shell .svc-list  { grid-template-columns: 1fr; }
   .home-shell .three-col { grid-template-columns: 1fr; }
   .home-shell .hm-row    { grid-template-columns: 1fr; }

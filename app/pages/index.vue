@@ -27,9 +27,15 @@ const NAV = [
   { label: 'colophon',  href: '/colophon' }
 ]
 
-type HomelabKpiKey = 'cpu' | 'mem' | 'temp' | 'load'
+type HomelabKpiKey = 'cpu' | 'mem' | 'temp' | 'power' | 'load'
 type HomelabTone = 'ok' | 'warn' | 'bad'
 type HomelabServiceState = 'up' | 'slow' | 'down'
+type HomelabNode = {
+  id: string
+  name: string
+  role: string
+  uptimeSeconds: number
+}
 type HomelabKpi = {
   key: HomelabKpiKey
   label: string
@@ -47,13 +53,26 @@ type HomelabHistorySample = {
   at: string
   kpis: Partial<Record<HomelabKpiKey, number | null>>
 }
+type HomelabStatusNode = HomelabNode & {
+  kpis: HomelabKpi[]
+  services: HomelabService[]
+  history: HomelabHistorySample[]
+  updatedAt: string
+  stale: boolean
+}
+type HomelabFleetService = HomelabService & {
+  nodeId: string
+  nodeName: string
+}
 type HomelabStatusResponse = {
   data: {
     version: 1
-    node: { name: string; uptimeSeconds: number }
+    node: HomelabNode
     kpis: HomelabKpi[]
     services: HomelabService[]
   } | null
+  nodes: HomelabStatusNode[]
+  services: HomelabFleetService[]
   history: HomelabHistorySample[]
   updatedAt: string | null
   fetchedAt: string
@@ -62,20 +81,19 @@ type HomelabStatusResponse = {
   source: 'd1' | 'memory' | 'none'
 }
 
-const DEFAULT_KPIS: HomelabKpi[] = [
-  { key: 'cpu',  label: 'cpu',  unit: '%', value: null, window: '1m', tone: 'warn' },
-  { key: 'mem',  label: 'mem',  unit: '%', value: null, window: '1m', tone: 'warn' },
-  { key: 'temp', label: 'temp', unit: 'C', value: null, window: '1m', tone: 'warn' },
-  { key: 'load', label: 'load', unit: '',  value: null, window: '1m', tone: 'warn' }
+const DEFAULT_FLEET_NODES = [
+  { id: 'nas', name: 'nas', role: 'storage + containers', aliases: ['homelab-v3'] },
+  { id: 'pi5', name: 'pi5', role: 'edge services', aliases: ['raspberry-pi-5', 'rpi5'] },
+  { id: 'ha-yellow', name: 'ha-yellow', role: 'home assistant cm5', aliases: ['home-assistant-yellow', 'yellow'] }
 ]
 
-const DEFAULT_SERVICE_NAMES = [
-  'traefik',
-  'immich_server',
-  'jellyfin',
-  'suwayomi',
-  'paperless',
-  'beszel'
+const DEFAULT_FLEET_SERVICES = [
+  { nodeId: 'nas', name: 'immich_server' },
+  { nodeId: 'nas', name: 'paperless' },
+  { nodeId: 'pi5', name: 'pihole' },
+  { nodeId: 'ha-yellow', name: 'home-assistant' },
+  { nodeId: 'ha-yellow', name: 'zigbee' },
+  { nodeId: 'mesh', name: 'tailscale' }
 ]
 
 const PROJECTS = [
@@ -145,6 +163,8 @@ const nowMonthLabel = computed(() => {
 // Homelab status (live data when the D1-backed API has a recent push).
 const emptyHomelabStatus = (): HomelabStatusResponse => ({
   data: null,
+  nodes: [],
+  services: [],
   history: [],
   updatedAt: null,
   fetchedAt: new Date(0).toISOString(),
@@ -249,36 +269,158 @@ function formatKpiValue(value: number | null) {
   return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.?0+$/, '')
 }
 
-const homelabData = computed(() => homelabStatus.value?.data ?? null)
-const homelabHistory = computed(() => homelabStatus.value?.history ?? [])
 const homelabUnavailable = computed(() => homelabStatus.value?.unavailable ?? true)
-const homelabStale = computed(() => homelabStatus.value?.stale ?? true)
-const homelabPillTone = computed(() => homelabUnavailable.value ? 'bad' : homelabStale.value ? 'warn' : 'ok')
+const reportedNodes = computed(() => homelabStatus.value?.nodes ?? [])
+const reportedServices = computed(() => {
+  if (homelabStatus.value?.services?.length) return homelabStatus.value.services
+  const data = homelabStatus.value?.data
+  if (!data) return []
+  return data.services.map((service) => ({
+    ...service,
+    nodeId: data.node.id,
+    nodeName: data.node.name
+  }))
+})
+
+function canonicalNodeId(value: string) {
+  if (value === 'homelab-v3') return 'nas'
+  if (value === 'raspberry-pi-5' || value === 'rpi5') return 'pi5'
+  if (value === 'home-assistant-yellow' || value === 'yellow') return 'ha-yellow'
+  return value
+}
+
+function canonicalServiceName(value: string) {
+  return value.toLowerCase().replace(/[_\s]+/g, '-')
+}
+
+function nodeDisplayName(nodeId: string) {
+  return DEFAULT_FLEET_NODES.find((node) => node.id === canonicalNodeId(nodeId))?.name ?? nodeId
+}
+
+function serviceDisplayName(name: string) {
+  if (name === 'immich_server') return 'immich'
+  if (name === 'home-assistant') return 'home assistant'
+  return name.replace(/[_-]+/g, ' ')
+}
+
+function findReportedNode(defaultNode: typeof DEFAULT_FLEET_NODES[number]) {
+  return reportedNodes.value.find((node) =>
+    node.id === defaultNode.id || defaultNode.aliases.includes(node.id) || canonicalNodeId(node.id) === defaultNode.id
+  )
+}
+
+function metricChip(node: HomelabStatusNode | undefined, key: 'cpu' | 'mem' | 'temp') {
+  const metric = node?.kpis.find((item) => item.key === key)
+  const value = metric?.value ?? null
+  const suffix = metric?.unit ?? (key === 'temp' ? 'C' : '%')
+  return {
+    key,
+    label: key,
+    value: value === null ? '--' : `${formatKpiValue(value)}${suffix}`,
+    tone: metric?.tone ?? 'warn'
+  }
+}
+
+function nodeTone(node: HomelabStatusNode | undefined) {
+  if (!node) return 'warn'
+  if (node.stale) return 'warn'
+  if (node.kpis.some((metric) => metric.tone === 'bad')) return 'bad'
+  if (node.kpis.some((metric) => metric.tone === 'warn')) return 'warn'
+  return 'ok'
+}
+
+const fleetNodes = computed(() => {
+  const used = new Set<string>()
+  const defaults = DEFAULT_FLEET_NODES.map((defaultNode) => {
+    const node = findReportedNode(defaultNode)
+    if (node) used.add(node.id)
+    const tone = nodeTone(node)
+    return {
+      id: defaultNode.id,
+      sourceId: node?.id ?? defaultNode.id,
+      name: defaultNode.name,
+      role: node?.role || defaultNode.role,
+      status: node ? node.stale ? 'stale' : 'live' : 'waiting',
+      meta: node ? `${formatDuration(node.uptimeSeconds)} uptime` : 'no data yet',
+      tone,
+      chips: [
+        metricChip(node, 'cpu'),
+        metricChip(node, 'mem'),
+        metricChip(node, 'temp')
+      ]
+    }
+  })
+
+  const extras = reportedNodes.value
+    .filter((node) => !used.has(node.id) && !DEFAULT_FLEET_NODES.some((defaultNode) => defaultNode.id === canonicalNodeId(node.id)))
+    .map((node) => ({
+      id: node.id,
+      sourceId: node.id,
+      name: node.name,
+      role: node.role || 'homelab node',
+      status: node.stale ? 'stale' : 'live',
+      meta: `${formatDuration(node.uptimeSeconds)} uptime`,
+      tone: nodeTone(node),
+      chips: [
+        metricChip(node, 'cpu'),
+        metricChip(node, 'mem'),
+        metricChip(node, 'temp')
+      ]
+    }))
+
+  return [...defaults, ...extras]
+})
+
+const liveNodeCount = computed(() => fleetNodes.value.filter((node) => node.status === 'live').length)
+const staleOrWaitingNodeCount = computed(() => fleetNodes.value.length - liveNodeCount.value)
+const serviceRows = computed(() => {
+  const actual = reportedServices.value
+  const actualByKey = new Map(actual.map((service) => [
+    `${canonicalNodeId(service.nodeId)}:${canonicalServiceName(service.name)}`,
+    service
+  ]))
+  const used = new Set<string>()
+
+  const rows = DEFAULT_FLEET_SERVICES.map((expected) => {
+    const key = `${expected.nodeId}:${canonicalServiceName(expected.name)}`
+    const actualService = actualByKey.get(key)
+    if (actualService) used.add(`${canonicalNodeId(actualService.nodeId)}:${canonicalServiceName(actualService.name)}`)
+    return actualService ?? {
+      nodeId: expected.nodeId,
+      nodeName: nodeDisplayName(expected.nodeId),
+      name: expected.name,
+      state: 'slow' as const,
+      detail: 'waiting'
+    }
+  })
+
+  const problemExtras = actual.filter((service) => {
+    const key = `${canonicalNodeId(service.nodeId)}:${canonicalServiceName(service.name)}`
+    return !used.has(key) && service.state !== 'up'
+  })
+
+  return [...rows, ...problemExtras]
+})
+
+const homelabPillTone = computed(() => {
+  if (homelabUnavailable.value) return 'bad'
+  if (serviceRows.value.some((service) => service.state === 'down') || fleetNodes.value.some((node) => node.tone === 'bad')) return 'bad'
+  if (staleOrWaitingNodeCount.value > 0 || serviceRows.value.some((service) => service.state === 'slow')) return 'warn'
+  return 'ok'
+})
 const homelabUptime = computed(() =>
-  homelabData.value ? `homelab ${formatDuration(homelabData.value.node.uptimeSeconds)}` : 'homelab n/a'
+  homelabUnavailable.value
+    ? 'homelab n/a'
+    : `homelab ${liveNodeCount.value}/${fleetNodes.value.length} live`
 )
 const homelabMeta = computed(() => {
   tick.value
   if (homelabUnavailable.value) return 'unavailable · no data'
-  const prefix = homelabStale.value ? 'stale' : 'live'
-  return `${prefix} · updated ${timeAgo(homelabStatus.value?.updatedAt ?? null)}`
+  const total = fleetNodes.value.length
+  if (liveNodeCount.value === total) return `live · ${total} nodes · updated ${timeAgo(homelabStatus.value?.updatedAt ?? null)}`
+  if (liveNodeCount.value > 0) return `partial · ${liveNodeCount.value}/${total} live · updated ${timeAgo(homelabStatus.value?.updatedAt ?? null)}`
+  return `stale · ${total} nodes · updated ${timeAgo(homelabStatus.value?.updatedAt ?? null)}`
 })
-
-const kpis = computed(() => {
-  const source = homelabData.value?.kpis?.length ? homelabData.value.kpis : DEFAULT_KPIS
-  return source.map((kpi) => ({
-    ...kpi,
-    values: homelabHistory.value
-      .map((sample) => sample.kpis[kpi.key])
-      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
-  }))
-})
-
-const services = computed(() => homelabData.value?.services ?? DEFAULT_SERVICE_NAMES.map((name) => ({
-  name,
-  state: 'slow' as const,
-  detail: 'waiting'
-})))
 
 // Currently — composed lines
 const currentlyLines = computed(() => {
@@ -456,34 +598,40 @@ onBeforeUnmount(() => {
           <div class="card-meta">{{ homelabMeta }}</div>
         </div>
 
-        <div class="kpi-grid">
+        <div class="node-grid">
           <div
-            v-for="k in kpis"
-            :key="k.key"
-            :class="['kpi', k.tone === 'warn' ? 'warn' : '', k.tone === 'bad' ? 'bad' : '']"
+            v-for="node in fleetNodes"
+            :key="node.sourceId"
+            :class="['node-tile', node.tone === 'warn' ? 'warn' : '', node.tone === 'bad' ? 'bad' : '']"
           >
-            <div class="kpi-label">
-              <span>{{ k.label }}</span>
-              <span class="dim3">{{ k.window }}</span>
+            <div class="node-tile-h">
+              <span class="node-name">{{ node.name }}</span>
+              <span class="node-status">{{ node.status }}</span>
             </div>
-            <div class="kpi-value tnum">
-              {{ formatKpiValue(k.value) }}<span v-if="k.value !== null && k.unit" class="unit">{{ k.unit }}</span>
-            </div>
-            <div class="kpi-spark">
-              <HomeSpark :seed="k.key.length * 11" :h="22" :tone="k.tone === 'ok' ? '' : k.tone" :tick="tick" :values="k.values" />
+            <div class="node-role">{{ node.role }}</div>
+            <div class="node-meta tnum">{{ node.meta }}</div>
+            <div class="metric-chips">
+              <span
+                v-for="chip in node.chips"
+                :key="chip.key"
+                :class="['metric-chip', chip.tone === 'warn' ? 'warn' : '', chip.tone === 'bad' ? 'bad' : '']"
+              >
+                <span>{{ chip.label }}</span>
+                <b class="tnum">{{ chip.value }}</b>
+              </span>
             </div>
           </div>
         </div>
 
         <div class="svc-list">
           <div
-            v-for="s in services"
-            :key="s.name"
+            v-for="s in serviceRows"
+            :key="`${s.nodeId}:${s.name}`"
             :class="['svc', s.state === 'slow' ? 'warn' : '', s.state === 'down' ? 'bad' : '']"
           >
             <div class="row gap-8">
               <span class="dot" />
-              <span class="name">{{ s.name }}</span>
+              <span class="name">{{ nodeDisplayName(s.nodeId) }} / {{ serviceDisplayName(s.name) }}</span>
             </div>
             <span class="stat">
               {{ s.detail }}

@@ -1,6 +1,7 @@
 export const HOMELAB_STALE_AFTER_MS = 3 * 60 * 1000
 export const HOMELAB_HISTORY_LIMIT = 60
 export const HOMELAB_RETENTION_SECONDS = 7 * 86400
+export const HOMELAB_MAX_NODES = 8
 
 export const HOMELAB_KPI_KEYS = ['cpu', 'mem', 'temp', 'power', 'load'] as const
 export const HOMELAB_SERVICE_STATES = ['up', 'slow', 'down'] as const
@@ -10,6 +11,13 @@ export type HomelabKpiKey = typeof HOMELAB_KPI_KEYS[number]
 export type HomelabServiceState = typeof HOMELAB_SERVICE_STATES[number]
 export type HomelabTone = typeof HOMELAB_TONES[number]
 export type HomelabStatusSource = 'd1' | 'memory' | 'none'
+
+export type HomelabNode = {
+  id: string
+  name: string
+  role: string
+  uptimeSeconds: number
+}
 
 export type HomelabKpi = {
   key: HomelabKpiKey
@@ -28,10 +36,7 @@ export type HomelabService = {
 
 export type HomelabStatusPayload = {
   version: 1
-  node: {
-    name: string
-    uptimeSeconds: number
-  }
+  node: HomelabNode
   kpis: HomelabKpi[]
   services: HomelabService[]
 }
@@ -41,8 +46,25 @@ export type HomelabHistorySample = {
   kpis: Partial<Record<HomelabKpiKey, number | null>>
 }
 
+export type HomelabStatusNode = HomelabNode & {
+  kpis: HomelabKpi[]
+  services: HomelabService[]
+  history: HomelabHistorySample[]
+  updatedAt: string
+  stale: boolean
+}
+
+export type HomelabFleetService = HomelabService & {
+  nodeId: string
+  nodeName: string
+}
+
+export type HomelabSnapshotNode = Omit<HomelabStatusNode, 'stale'>
+
 export type HomelabStatusSnapshot = {
   data: HomelabStatusPayload
+  nodes: HomelabSnapshotNode[]
+  services: HomelabFleetService[]
   history: HomelabHistorySample[]
   reportedAt: string
   receivedAt: string
@@ -50,6 +72,8 @@ export type HomelabStatusSnapshot = {
 
 export type HomelabStatusResponse = {
   data: HomelabStatusPayload | null
+  nodes: HomelabStatusNode[]
+  services: HomelabFleetService[]
   history: HomelabHistorySample[]
   updatedAt: string | null
   fetchedAt: string
@@ -76,6 +100,7 @@ export type HomelabD1Database = {
 
 export type HomelabMetricRow = {
   ts: number
+  node_id?: string
   cpu_pct: number | null
   mem_pct: number | null
   temp_c: number | null
@@ -86,12 +111,14 @@ export type HomelabMetricRow = {
 
 export type HomelabServiceRow = {
   ts: number
+  node_id?: string
   service: string
   state: HomelabServiceState
 }
 
 type HomelabMetricRecord = {
   ts: number
+  nodeId: string
   cpuPct: number | null
   memPct: number | null
   tempC: number | null
@@ -102,8 +129,15 @@ type HomelabMetricRecord = {
 
 type HomelabServiceRecord = {
   ts: number
+  nodeId: string
   service: string
   state: HomelabServiceState
+}
+
+type MetricMeta = {
+  node: HomelabNode
+  kpiMeta: Map<HomelabKpiKey, Partial<HomelabKpi>>
+  serviceDetails: Map<string, string>
 }
 
 let memoryMetrics: HomelabMetricRecord[] = []
@@ -115,8 +149,11 @@ export function validateHomelabPayload(input: unknown): ValidationResult {
 
   if (!isRecord(input.node)) return invalid('node must be an object')
   const nodeName = cleanString(input.node.name, 64)
+  const nodeId = cleanNodeId(input.node.id) || cleanNodeId(nodeName)
+  const nodeRole = cleanString(input.node.role, 48)
   const uptimeSeconds = cleanNonNegativeNumber(input.node.uptimeSeconds)
   if (!nodeName) return invalid('node.name is required')
+  if (!nodeId) return invalid('node.id is invalid')
   if (uptimeSeconds === null) return invalid('node.uptimeSeconds must be a non-negative number')
 
   if (!Array.isArray(input.kpis) || input.kpis.length < 1 || input.kpis.length > 8) {
@@ -172,7 +209,7 @@ export function validateHomelabPayload(input: unknown): ValidationResult {
     ok: true,
     value: {
       version: 1,
-      node: { name: nodeName, uptimeSeconds },
+      node: { id: nodeId, name: nodeName, role: nodeRole, uptimeSeconds },
       kpis,
       services
     }
@@ -182,6 +219,7 @@ export function validateHomelabPayload(input: unknown): ValidationResult {
 export function metricRowFromPayload(payload: HomelabStatusPayload, ts: number): HomelabMetricRecord {
   return {
     ts,
+    nodeId: payload.node.id,
     cpuPct: kpiValue(payload, 'cpu'),
     memPct: kpiValue(payload, 'mem'),
     tempC: kpiValue(payload, 'temp'),
@@ -199,6 +237,7 @@ export function metricRowFromPayload(payload: HomelabStatusPayload, ts: number):
 export function serviceRowsFromPayload(payload: HomelabStatusPayload, ts: number): HomelabServiceRecord[] {
   return payload.services.map((service) => ({
     ts,
+    nodeId: payload.node.id,
     service: service.name,
     state: service.state
   }))
@@ -207,27 +246,28 @@ export function serviceRowsFromPayload(payload: HomelabStatusPayload, ts: number
 export async function readHomelabSnapshotFromD1(db: HomelabD1Database) {
   const metricRows = await db
     .prepare(
-      `SELECT ts, cpu_pct, mem_pct, temp_c, power_w, load_1m, meta_json
+      `SELECT ts, node_id, cpu_pct, mem_pct, temp_c, power_w, load_1m, meta_json
        FROM metrics
        ORDER BY ts DESC
        LIMIT ?1`
     )
-    .bind(HOMELAB_HISTORY_LIMIT)
+    .bind(HOMELAB_HISTORY_LIMIT * HOMELAB_MAX_NODES)
     .all<HomelabMetricRow>()
 
   const metrics = (metricRows.results ?? []).map(metricRecordFromD1Row)
   if (!metrics.length) return null
 
-  const latestTs = metrics[0]!.ts
-
   const serviceRows = await db
     .prepare(
-      `SELECT ts, service, state
-       FROM service_status
-       WHERE ts = ?1
-       ORDER BY service ASC`
+      `SELECT s.ts, s.node_id, s.service, s.state
+       FROM service_status s
+       INNER JOIN (
+        SELECT node_id, MAX(ts) AS ts
+        FROM metrics
+        GROUP BY node_id
+       ) latest ON latest.node_id = s.node_id AND latest.ts = s.ts
+       ORDER BY s.node_id ASC, s.service ASC`
     )
-    .bind(latestTs)
     .all<HomelabServiceRow>()
 
   return snapshotFromRows(metrics, (serviceRows.results ?? []).map(serviceRecordFromD1Row))
@@ -244,22 +284,22 @@ export async function writeHomelabSnapshotToD1(
 
   const statements = [
     db.prepare(
-      `INSERT INTO metrics (ts, cpu_pct, mem_pct, temp_c, power_w, load_1m, meta_json)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
-       ON CONFLICT(ts) DO UPDATE SET
+      `INSERT INTO metrics (ts, node_id, cpu_pct, mem_pct, temp_c, power_w, load_1m, meta_json)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+       ON CONFLICT(ts, node_id) DO UPDATE SET
         cpu_pct = excluded.cpu_pct,
         mem_pct = excluded.mem_pct,
         temp_c = excluded.temp_c,
         power_w = excluded.power_w,
         load_1m = excluded.load_1m,
         meta_json = excluded.meta_json`
-    ).bind(metric.ts, metric.cpuPct, metric.memPct, metric.tempC, metric.powerW, metric.load1m, metric.metaJson),
+    ).bind(metric.ts, metric.nodeId, metric.cpuPct, metric.memPct, metric.tempC, metric.powerW, metric.load1m, metric.metaJson),
     ...services.map((service) =>
       db.prepare(
-        `INSERT INTO service_status (ts, service, state)
-         VALUES (?1, ?2, ?3)
-         ON CONFLICT(ts, service) DO UPDATE SET state = excluded.state`
-      ).bind(service.ts, service.service, service.state)
+        `INSERT INTO service_status (ts, node_id, service, state)
+         VALUES (?1, ?2, ?3, ?4)
+         ON CONFLICT(ts, node_id, service) DO UPDATE SET state = excluded.state`
+      ).bind(service.ts, service.nodeId, service.service, service.state)
     )
   ]
 
@@ -286,23 +326,25 @@ export async function pruneHomelabRowsFromD1(db: HomelabD1Database, olderThanTs:
 export function readHomelabSnapshotFromMemory() {
   const metrics = [...memoryMetrics]
     .sort((a, b) => b.ts - a.ts)
-    .slice(0, HOMELAB_HISTORY_LIMIT)
+    .slice(0, HOMELAB_HISTORY_LIMIT * HOMELAB_MAX_NODES)
   return snapshotFromRows(metrics, currentMemoryServices())
 }
 
 export function writeHomelabSnapshotToMemory(payload: HomelabStatusPayload, receivedAt = new Date()) {
   const ts = Math.floor(receivedAt.getTime() / 1000)
-  memoryMetrics = upsertBy(memoryMetrics, metricRowFromPayload(payload, ts), (row) => String(row.ts))
+  const metric = metricRowFromPayload(payload, ts)
+  memoryMetrics = upsertBy(memoryMetrics, metric, (row) => `${row.ts}:${row.nodeId}`)
+
   const nextServices = serviceRowsFromPayload(payload, ts)
   for (const service of nextServices) {
-    memoryServices = upsertBy(memoryServices, service, (row) => `${row.ts}:${row.service}`)
+    memoryServices = upsertBy(memoryServices, service, (row) => `${row.ts}:${row.nodeId}:${row.service}`)
   }
 
   const cutoff = ts - HOMELAB_RETENTION_SECONDS
   memoryMetrics = memoryMetrics.filter((row) => row.ts >= cutoff)
   memoryServices = memoryServices.filter((row) => row.ts >= cutoff)
 
-  const snapshot = snapshotFromRows([metricRowFromPayload(payload, ts)], nextServices)
+  const snapshot = snapshotFromRows([metric], nextServices)
   if (!snapshot) throw new Error('failed to build memory homelab snapshot after write')
   return snapshot
 }
@@ -321,6 +363,8 @@ export function buildHomelabResponse(
   if (!snapshot) {
     return {
       data: null,
+      nodes: [],
+      services: [],
       history: [],
       updatedAt: null,
       fetchedAt,
@@ -330,14 +374,26 @@ export function buildHomelabResponse(
     }
   }
 
-  const stale = now.getTime() - Date.parse(snapshot.reportedAt) > HOMELAB_STALE_AFTER_MS
+  const nodes = snapshot.nodes.map((node): HomelabStatusNode => ({
+    ...node,
+    stale: now.getTime() - Date.parse(node.updatedAt) > HOMELAB_STALE_AFTER_MS
+  }))
+  const primary = selectPrimaryNode(nodes)
 
   return {
-    data: snapshot.data,
-    history: snapshot.history,
+    data: primary ? payloadFromNode(primary) : snapshot.data,
+    nodes,
+    services: nodes.flatMap((node) =>
+      node.services.map((service) => ({
+        ...service,
+        nodeId: node.id,
+        nodeName: node.name
+      }))
+    ),
+    history: primary?.history ?? snapshot.history,
     updatedAt: snapshot.reportedAt,
     fetchedAt,
-    stale,
+    stale: nodes.length === 0 || nodes.every((node) => node.stale),
     unavailable: false,
     source
   }
@@ -357,30 +413,95 @@ export function formatDuration(seconds: number | undefined) {
 }
 
 function snapshotFromRows(metricsDesc: HomelabMetricRecord[], serviceRows: HomelabServiceRecord[]): HomelabStatusSnapshot | null {
-  const latest = metricsDesc[0]
+  const sortedMetrics = [...metricsDesc].sort((a, b) => b.ts - a.ts)
+  const latest = sortedMetrics[0]
   if (!latest) return null
 
-  const meta = parseMetricMeta(latest.metaJson)
+  const metricsByNode = new Map<string, HomelabMetricRecord[]>()
+  for (const metric of sortedMetrics) {
+    const rows = metricsByNode.get(metric.nodeId) ?? []
+    rows.push(metric)
+    metricsByNode.set(metric.nodeId, rows)
+  }
+
+  const nodes = [...metricsByNode.entries()]
+    .map(([nodeId, nodeMetricsDesc]) => nodeFromRows(nodeId, nodeMetricsDesc, serviceRows))
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+
+  const primary = selectPrimaryNode(nodes)
+  if (!primary) return null
   const reportedAt = isoFromTs(latest.ts)
-  const services = serviceRows
+
+  return {
+    data: payloadFromNode(primary),
+    nodes,
+    services: nodes.flatMap((node) =>
+      node.services.map((service) => ({
+        ...service,
+        nodeId: node.id,
+        nodeName: node.name
+      }))
+    ),
+    history: primary.history,
+    reportedAt,
+    receivedAt: reportedAt
+  }
+}
+
+function nodeFromRows(
+  nodeId: string,
+  nodeMetricsDesc: HomelabMetricRecord[],
+  serviceRows: HomelabServiceRecord[]
+): HomelabSnapshotNode {
+  const latest = nodeMetricsDesc[0]!
+  const meta = parseMetricMeta(latest.metaJson, nodeId)
+  const services = latestServicesForNode(nodeId, serviceRows, meta)
+
+  return {
+    ...meta.node,
+    id: nodeId,
+    kpis: kpisFromMetric(latest, meta),
+    services,
+    history: [...nodeMetricsDesc].reverse().map(historySampleFromMetric),
+    updatedAt: isoFromTs(latest.ts)
+  }
+}
+
+function latestServicesForNode(nodeId: string, serviceRows: HomelabServiceRecord[], meta: MetricMeta) {
+  const latestByName = new Map<string, HomelabServiceRecord>()
+  for (const row of serviceRows) {
+    if (row.nodeId !== nodeId) continue
+    const current = latestByName.get(row.service)
+    if (!current || row.ts > current.ts) latestByName.set(row.service, row)
+  }
+
+  return [...latestByName.values()]
     .sort((a, b) => a.service.localeCompare(b.service))
     .map((row): HomelabService => ({
       name: row.service,
       state: row.state,
       detail: meta.serviceDetails.get(row.service) ?? serviceDetail(row.state)
     }))
+}
 
+function payloadFromNode(node: HomelabSnapshotNode | HomelabStatusNode): HomelabStatusPayload {
   return {
-    data: {
-      version: 1,
-      node: meta.node,
-      kpis: kpisFromMetric(latest, meta),
-      services
+    version: 1,
+    node: {
+      id: node.id,
+      name: node.name,
+      role: node.role,
+      uptimeSeconds: node.uptimeSeconds
     },
-    history: [...metricsDesc].reverse().map(historySampleFromMetric),
-    reportedAt,
-    receivedAt: reportedAt
+    kpis: node.kpis,
+    services: node.services
   }
+}
+
+function selectPrimaryNode<T extends HomelabSnapshotNode | HomelabStatusNode>(nodes: T[]) {
+  return nodes.find((node) => node.id === 'nas')
+    ?? nodes.find((node) => node.id === 'homelab-v3')
+    ?? nodes[0]
 }
 
 function kpisFromMetric(metric: HomelabMetricRecord, meta: MetricMeta): HomelabKpi[] {
@@ -418,15 +539,14 @@ function historySampleFromMetric(metric: HomelabMetricRecord): HomelabHistorySam
   }
 }
 
-type MetricMeta = {
-  node: HomelabStatusPayload['node']
-  kpiMeta: Map<HomelabKpiKey, Partial<HomelabKpi>>
-  serviceDetails: Map<string, string>
-}
-
-function parseMetricMeta(value: string): MetricMeta {
+function parseMetricMeta(value: string, fallbackNodeId: string): MetricMeta {
   const fallback: MetricMeta = {
-    node: { name: 'homelab', uptimeSeconds: 0 },
+    node: {
+      id: fallbackNodeId,
+      name: fallbackNodeId,
+      role: '',
+      uptimeSeconds: 0
+    },
     kpiMeta: new Map(),
     serviceDetails: new Map()
   }
@@ -437,9 +557,13 @@ function parseMetricMeta(value: string): MetricMeta {
 
     if (isRecord(parsed.node)) {
       const name = cleanString(parsed.node.name, 64)
+      const id = cleanNodeId(parsed.node.id) || cleanNodeId(name) || fallback.node.id
+      const role = cleanString(parsed.node.role, 48)
       const uptimeSeconds = cleanNonNegativeNumber(parsed.node.uptimeSeconds)
       fallback.node = {
+        id,
         name: name || fallback.node.name,
+        role,
         uptimeSeconds: uptimeSeconds ?? fallback.node.uptimeSeconds
       }
     }
@@ -472,20 +596,25 @@ function parseMetricMeta(value: string): MetricMeta {
 }
 
 function metricRecordFromD1Row(row: HomelabMetricRow): HomelabMetricRecord {
+  const metaJson = row.meta_json || '{}'
+  const nodeId = cleanNodeId(row.node_id) || nodeIdFromMeta(metaJson)
+
   return {
     ts: row.ts,
+    nodeId,
     cpuPct: cleanNullableNumber(row.cpu_pct),
     memPct: cleanNullableNumber(row.mem_pct),
     tempC: cleanNullableNumber(row.temp_c),
     powerW: cleanNullableNumber(row.power_w),
     load1m: cleanNullableNumber(row.load_1m),
-    metaJson: row.meta_json || '{}'
+    metaJson
   }
 }
 
 function serviceRecordFromD1Row(row: HomelabServiceRow): HomelabServiceRecord {
   return {
     ts: row.ts,
+    nodeId: cleanNodeId(row.node_id) || 'homelab',
     service: row.service,
     state: cleanServiceState(row.state) ?? 'down'
   }
@@ -494,10 +623,21 @@ function serviceRecordFromD1Row(row: HomelabServiceRow): HomelabServiceRecord {
 function currentMemoryServices() {
   const latest = new Map<string, HomelabServiceRecord>()
   for (const row of memoryServices) {
-    const current = latest.get(row.service)
-    if (!current || row.ts > current.ts) latest.set(row.service, row)
+    const key = `${row.nodeId}:${row.service}`
+    const current = latest.get(key)
+    if (!current || row.ts > current.ts) latest.set(key, row)
   }
   return [...latest.values()]
+}
+
+function nodeIdFromMeta(value: string) {
+  try {
+    const parsed = JSON.parse(value)
+    if (!isRecord(parsed) || !isRecord(parsed.node)) return 'homelab'
+    return cleanNodeId(parsed.node.id) || cleanNodeId(parsed.node.name) || 'homelab'
+  } catch {
+    return 'homelab'
+  }
 }
 
 function upsertBy<T>(rows: T[], row: T, keyFn: (row: T) => string) {
@@ -553,6 +693,14 @@ function cleanServiceState(value: unknown): HomelabServiceState | null {
 function cleanString(value: unknown, maxLength: number) {
   if (typeof value !== 'string') return ''
   return value.trim().slice(0, maxLength)
+}
+
+function cleanNodeId(value: unknown) {
+  return cleanString(value, 64)
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 32)
 }
 
 function cleanFiniteNumber(value: unknown) {
