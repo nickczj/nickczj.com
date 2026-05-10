@@ -65,7 +65,7 @@ function fixtureNodes(mode: HomelabFixtureMode, now: Date): HomelabStatusNode[] 
     {
       id: 'pi5',
       name: 'pi5',
-      role: 'edge services',
+      role: 'pi-hole dns, edge services',
       uptimeSeconds: 18 * 86400 + 9 * 3600,
       ageSeconds: 55,
       kpis: { cpu: 8, mem: 31, temp: 48, load: 0.39 },
@@ -77,7 +77,7 @@ function fixtureNodes(mode: HomelabFixtureMode, now: Date): HomelabStatusNode[] 
     {
       id: 'ha-yellow',
       name: 'ha-yellow',
-      role: 'home assistant cm5',
+      role: 'smart home',
       uptimeSeconds: 9 * 86400 + 12 * 3600,
       ageSeconds: 68,
       kpis: { cpu: 5, mem: 39, temp: 45, load: 0.22 },

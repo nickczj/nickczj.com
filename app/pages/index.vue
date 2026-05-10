@@ -83,8 +83,18 @@ type HomelabStatusResponse = {
 
 const DEFAULT_FLEET_NODES = [
   { id: 'nas', name: 'nas', role: 'storage + containers', aliases: ['homelab-v3'] },
-  { id: 'pi5', name: 'pi5', role: 'edge services', aliases: ['raspberry-pi-5', 'rpi5'] },
-  { id: 'ha-yellow', name: 'ha-yellow', role: 'home assistant cm5', aliases: ['home-assistant-yellow', 'yellow'] }
+  { id: 'pi5', name: 'Raspberry Pi 5, 8GB', role: 'pi-hole dns, edge services', aliases: ['raspberry-pi-5', 'rpi5'] },
+  { id: 'ha-yellow', name: 'Home Assistant Yellow, CM5', role: 'smart home', aliases: ['home-assistant-yellow', 'yellow'] }
+]
+
+const PRIMARY_FLEET_NODE = DEFAULT_FLEET_NODES[0]!
+const PRIMARY_KPI_KEYS: HomelabKpiKey[] = ['cpu', 'mem', 'temp', 'load']
+
+const DEFAULT_PRIMARY_KPIS: HomelabKpi[] = [
+  { key: 'cpu',  label: 'cpu',  unit: '%', value: null, window: '1m', tone: 'warn' },
+  { key: 'mem',  label: 'mem',  unit: '%', value: null, window: '1m', tone: 'warn' },
+  { key: 'temp', label: 'temp', unit: 'C', value: null, window: '1m', tone: 'warn' },
+  { key: 'load', label: 'load', unit: '',  value: null, window: '1m', tone: 'warn' }
 ]
 
 const DEFAULT_FLEET_SERVICES = [
@@ -270,7 +280,20 @@ function formatKpiValue(value: number | null) {
 }
 
 const homelabUnavailable = computed(() => homelabStatus.value?.unavailable ?? true)
-const reportedNodes = computed(() => homelabStatus.value?.nodes ?? [])
+const reportedNodes = computed(() => {
+  const status = homelabStatus.value
+  if (status?.nodes?.length) return status.nodes
+  const data = status?.data
+  if (!data) return []
+  return [{
+    ...data.node,
+    kpis: data.kpis,
+    services: data.services,
+    history: status.history ?? [],
+    updatedAt: status.updatedAt ?? status.fetchedAt,
+    stale: status.stale
+  }]
+})
 const reportedServices = computed(() => {
   if (homelabStatus.value?.services?.length) return homelabStatus.value.services
   const data = homelabStatus.value?.data
@@ -309,6 +332,13 @@ function findReportedNode(defaultNode: typeof DEFAULT_FLEET_NODES[number]) {
   )
 }
 
+function primaryKpiHistoryValues(node: HomelabStatusNode | undefined, key: HomelabKpiKey) {
+  const history = node?.history?.length ? node.history : homelabStatus.value?.history ?? []
+  return history
+    .map((sample) => sample.kpis[key])
+    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
+}
+
 function metricChip(node: HomelabStatusNode | undefined, key: 'cpu' | 'mem' | 'temp') {
   const metric = node?.kpis.find((item) => item.key === key)
   const value = metric?.value ?? null
@@ -328,6 +358,24 @@ function nodeTone(node: HomelabStatusNode | undefined) {
   if (node.kpis.some((metric) => metric.tone === 'warn')) return 'warn'
   return 'ok'
 }
+
+const primaryHomelabNode = computed(() => findReportedNode(PRIMARY_FLEET_NODE))
+
+const primaryKpis = computed(() => {
+  const source = primaryHomelabNode.value?.kpis?.length
+    ? primaryHomelabNode.value.kpis
+    : DEFAULT_PRIMARY_KPIS
+  const byKey = new Map(source.map((kpi) => [kpi.key, kpi]))
+
+  return PRIMARY_KPI_KEYS.map((key) => {
+    const fallback = DEFAULT_PRIMARY_KPIS.find((kpi) => kpi.key === key)!
+    const kpi = byKey.get(key) ?? fallback
+    return {
+      ...kpi,
+      values: primaryKpiHistoryValues(primaryHomelabNode.value, key)
+    }
+  })
+})
 
 const fleetNodes = computed(() => {
   const used = new Set<string>()
@@ -371,6 +419,7 @@ const fleetNodes = computed(() => {
   return [...defaults, ...extras]
 })
 
+const secondaryNodes = computed(() => fleetNodes.value.filter((node) => canonicalNodeId(node.id) !== 'nas'))
 const liveNodeCount = computed(() => fleetNodes.value.filter((node) => node.status === 'live').length)
 const staleOrWaitingNodeCount = computed(() => fleetNodes.value.length - liveNodeCount.value)
 const serviceRows = computed(() => {
@@ -594,13 +643,42 @@ onBeforeUnmount(() => {
     <div class="hero-grid">
       <section class="card">
         <div class="card-h">
-          <div class="card-title"><span class="dot" /> homelab.status</div>
+          <div class="card-title homelab-card-title">
+            <span class="dot" />
+            <span>homelab.status</span>
+            <span class="device-label">UGreen DXP4800 Plus NAS</span>
+          </div>
           <div class="card-meta">{{ homelabMeta }}</div>
+        </div>
+
+        <div class="kpi-grid">
+          <div
+            v-for="k in primaryKpis"
+            :key="k.key"
+            :class="['kpi', k.tone === 'warn' ? 'warn' : '', k.tone === 'bad' ? 'bad' : '']"
+          >
+            <div class="kpi-label">
+              <span>{{ k.label }}</span>
+              <span class="dim3">{{ k.window }}</span>
+            </div>
+            <div class="kpi-value tnum">
+              {{ formatKpiValue(k.value) }}<span v-if="k.value !== null && k.unit" class="unit">{{ k.unit }}</span>
+            </div>
+            <div class="kpi-spark">
+              <HomeSpark
+                :seed="k.key.length * 11"
+                :h="22"
+                :tone="k.tone === 'ok' ? '' : k.tone"
+                :tick="tick"
+                :values="k.values"
+              />
+            </div>
+          </div>
         </div>
 
         <div class="node-grid">
           <div
-            v-for="node in fleetNodes"
+            v-for="node in secondaryNodes"
             :key="node.sourceId"
             :class="['node-tile', node.tone === 'warn' ? 'warn' : '', node.tone === 'bad' ? 'bad' : '']"
           >
