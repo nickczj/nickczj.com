@@ -82,8 +82,8 @@ type HomelabStatusResponse = {
 }
 
 const DEFAULT_FLEET_NODES = [
-  { id: 'nas', name: 'nas', role: 'storage + containers', aliases: ['homelab-v3'] },
-  { id: 'pi5', name: 'Raspberry Pi 5, 8GB', role: 'pi-hole dns, edge services', aliases: ['raspberry-pi-5', 'rpi5'] },
+  { id: 'nas', name: 'nas', role: 'storage + containers', aliases: ['homelab-v3', 'ugreen-nas', 'ugreen-dxp4800-plus', 'dxp4800-plus'] },
+  { id: 'pi5', name: 'Raspberry Pi 5, 8GB', role: 'pi-hole dns, edge services', aliases: ['raspberry-pi-5', 'raspberry-pi-5-8gb', 'rpi5'] },
   { id: 'ha-yellow', name: 'Home Assistant Yellow, CM5', role: 'smart home', aliases: ['home-assistant-yellow', 'yellow'] }
 ]
 
@@ -304,8 +304,8 @@ const reportedServices = computed(() => {
 })
 
 function canonicalNodeId(value: string) {
-  if (value === 'homelab-v3') return 'nas'
-  if (value === 'raspberry-pi-5' || value === 'rpi5') return 'pi5'
+  if (value === 'homelab-v3' || value === 'ugreen-nas' || value === 'ugreen-dxp4800-plus' || value === 'dxp4800-plus') return 'nas'
+  if (value === 'raspberry-pi-5' || value === 'raspberry-pi-5-8gb' || value === 'rpi5') return 'pi5'
   if (value === 'home-assistant-yellow' || value === 'yellow') return 'ha-yellow'
   return value
 }
@@ -316,6 +316,11 @@ function canonicalServiceName(value: string) {
 
 function nodeDisplayName(nodeId: string) {
   return DEFAULT_FLEET_NODES.find((node) => node.id === canonicalNodeId(nodeId))?.name ?? nodeId
+}
+
+function isDefaultFleetNodeId(nodeId: string) {
+  const canonicalId = canonicalNodeId(nodeId)
+  return DEFAULT_FLEET_NODES.some((node) => node.id === canonicalId)
 }
 
 function serviceDisplayName(name: string) {
@@ -398,7 +403,7 @@ const fleetNodes = computed(() => {
   })
 
   const extras = reportedNodes.value
-    .filter((node) => !used.has(node.id) && !DEFAULT_FLEET_NODES.some((defaultNode) => defaultNode.id === canonicalNodeId(node.id)))
+    .filter((node) => !used.has(node.id) && !isDefaultFleetNodeId(node.id))
     .map((node) => ({
       id: node.id,
       sourceId: node.id,
@@ -417,7 +422,7 @@ const fleetNodes = computed(() => {
   return [...defaults, ...extras]
 })
 
-const secondaryNodes = computed(() => fleetNodes.value.filter((node) => canonicalNodeId(node.id) !== 'nas'))
+const normalNodes = computed(() => fleetNodes.value.filter((node) => !isDefaultFleetNodeId(node.id)))
 const liveNodeCount = computed(() => fleetNodes.value.filter((node) => node.status === 'live').length)
 const staleOrWaitingNodeCount = computed(() => fleetNodes.value.length - liveNodeCount.value)
 const serviceRows = computed(() => {
@@ -674,9 +679,9 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <div class="node-grid">
+        <div v-if="normalNodes.length" class="node-grid">
           <div
-            v-for="node in secondaryNodes"
+            v-for="node in normalNodes"
             :key="node.sourceId"
             :class="['node-tile', node.tone === 'warn' ? 'warn' : '', node.tone === 'bad' ? 'bad' : '']"
           >

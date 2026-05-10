@@ -6,6 +6,17 @@ export const HOMELAB_MAX_NODES = 8
 export const HOMELAB_KPI_KEYS = ['cpu', 'mem', 'temp', 'power', 'load'] as const
 export const HOMELAB_SERVICE_STATES = ['up', 'slow', 'down'] as const
 export const HOMELAB_TONES = ['ok', 'warn', 'bad'] as const
+export const HOMELAB_NODE_ALIASES: Record<string, string> = {
+  'homelab-v3': 'nas',
+  'ugreen-nas': 'nas',
+  'ugreen-dxp4800-plus': 'nas',
+  'dxp4800-plus': 'nas',
+  'raspberry-pi-5': 'pi5',
+  'raspberry-pi-5-8gb': 'pi5',
+  rpi5: 'pi5',
+  'home-assistant-yellow': 'ha-yellow',
+  yellow: 'ha-yellow'
+}
 
 export type HomelabKpiKey = typeof HOMELAB_KPI_KEYS[number]
 export type HomelabServiceState = typeof HOMELAB_SERVICE_STATES[number]
@@ -219,7 +230,7 @@ export function validateHomelabPayload(input: unknown): ValidationResult {
 export function metricRowFromPayload(payload: HomelabStatusPayload, ts: number): HomelabMetricRecord {
   return {
     ts,
-    nodeId: payload.node.id,
+    nodeId: canonicalHomelabNodeId(payload.node.id),
     cpuPct: kpiValue(payload, 'cpu'),
     memPct: kpiValue(payload, 'mem'),
     tempC: kpiValue(payload, 'temp'),
@@ -237,7 +248,7 @@ export function metricRowFromPayload(payload: HomelabStatusPayload, ts: number):
 export function serviceRowsFromPayload(payload: HomelabStatusPayload, ts: number): HomelabServiceRecord[] {
   return payload.services.map((service) => ({
     ts,
-    nodeId: payload.node.id,
+    nodeId: canonicalHomelabNodeId(payload.node.id),
     service: service.name,
     state: service.state
   }))
@@ -499,8 +510,7 @@ function payloadFromNode(node: HomelabSnapshotNode | HomelabStatusNode): Homelab
 }
 
 function selectPrimaryNode<T extends HomelabSnapshotNode | HomelabStatusNode>(nodes: T[]) {
-  return nodes.find((node) => node.id === 'nas')
-    ?? nodes.find((node) => node.id === 'homelab-v3')
+  return nodes.find((node) => canonicalHomelabNodeId(node.id) === 'nas')
     ?? nodes[0]
 }
 
@@ -597,7 +607,7 @@ function parseMetricMeta(value: string, fallbackNodeId: string): MetricMeta {
 
 function metricRecordFromD1Row(row: HomelabMetricRow): HomelabMetricRecord {
   const metaJson = row.meta_json || '{}'
-  const nodeId = cleanNodeId(row.node_id) || nodeIdFromMeta(metaJson)
+  const nodeId = canonicalHomelabNodeId(cleanNodeId(row.node_id) || nodeIdFromMeta(metaJson))
 
   return {
     ts: row.ts,
@@ -614,7 +624,7 @@ function metricRecordFromD1Row(row: HomelabMetricRow): HomelabMetricRecord {
 function serviceRecordFromD1Row(row: HomelabServiceRow): HomelabServiceRecord {
   return {
     ts: row.ts,
-    nodeId: cleanNodeId(row.node_id) || 'homelab',
+    nodeId: canonicalHomelabNodeId(cleanNodeId(row.node_id) || 'homelab'),
     service: row.service,
     state: cleanServiceState(row.state) ?? 'down'
   }
@@ -634,10 +644,14 @@ function nodeIdFromMeta(value: string) {
   try {
     const parsed = JSON.parse(value)
     if (!isRecord(parsed) || !isRecord(parsed.node)) return 'homelab'
-    return cleanNodeId(parsed.node.id) || cleanNodeId(parsed.node.name) || 'homelab'
+    return canonicalHomelabNodeId(cleanNodeId(parsed.node.id) || cleanNodeId(parsed.node.name) || 'homelab')
   } catch {
     return 'homelab'
   }
+}
+
+export function canonicalHomelabNodeId(value: string) {
+  return HOMELAB_NODE_ALIASES[value] ?? value
 }
 
 function upsertBy<T>(rows: T[], row: T, keyFn: (row: T) => string) {

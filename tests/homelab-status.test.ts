@@ -180,6 +180,71 @@ describe('homelab status structured storage', () => {
     expect(response.services.find((service) => service.nodeId === 'pi5' && service.name === 'pihole')?.state).toBe('up')
     expect(response.stale).toBe(false)
   })
+
+  test('D1 adapter merges NAS hostname aliases into the primary node', async () => {
+    const db = new FakeD1()
+    db.metrics = [
+      metricRow('2026-05-05T00:00:00.000Z', 'nas', payload, 23.46),
+      metricRow('2026-05-05T00:01:00.000Z', 'ugreen-nas', {
+        ...payload,
+        node: { id: 'ugreen-nas', name: 'ugreen-nas', role: 'storage + containers', uptimeSeconds: 222 },
+        services: [
+          { name: 'paperless', state: 'up', detail: 'up' }
+        ]
+      }, 55)
+    ]
+    db.services = [
+      { ts: 1777939200, node_id: 'nas', service: 'traefik', state: 'up' },
+      { ts: 1777939260, node_id: 'ugreen-nas', service: 'paperless', state: 'up' }
+    ]
+
+    const response = buildHomelabResponse(
+      await readHomelabSnapshotFromD1(db),
+      'd1',
+      new Date('2026-05-05T00:02:30.000Z')
+    )
+
+    expect(response.nodes.map((node) => node.id)).toEqual(['nas'])
+    expect(response.data?.node.id).toBe('nas')
+    expect(response.nodes[0]?.history.map((sample) => sample.kpis.cpu)).toEqual([23.46, 55])
+    expect(response.services.find((service) => service.nodeId === 'nas' && service.name === 'paperless')?.state).toBe('up')
+    expect(response.stale).toBe(false)
+  })
+
+  test('D1 adapter merges Raspberry Pi display-name aliases into pi5', async () => {
+    const db = new FakeD1()
+    db.metrics = [
+      metricRow('2026-05-05T00:00:00.000Z', 'pi5', {
+        ...payload,
+        node: { id: 'pi5', name: 'pi5', role: 'edge services', uptimeSeconds: 100 },
+        services: [
+          { name: 'pihole', state: 'up', detail: 'up' }
+        ]
+      }, 11),
+      metricRow('2026-05-05T00:01:00.000Z', 'raspberry-pi-5-8gb', {
+        ...payload,
+        node: { id: 'raspberry-pi-5-8gb', name: 'Raspberry Pi 5, 8GB', role: 'edge services', uptimeSeconds: 200 },
+        services: [
+          { name: 'tailscale', state: 'up', detail: 'up' }
+        ]
+      }, 14)
+    ]
+    db.services = [
+      { ts: 1777939200, node_id: 'pi5', service: 'pihole', state: 'up' },
+      { ts: 1777939260, node_id: 'raspberry-pi-5-8gb', service: 'tailscale', state: 'up' }
+    ]
+
+    const response = buildHomelabResponse(
+      await readHomelabSnapshotFromD1(db),
+      'd1',
+      new Date('2026-05-05T00:02:30.000Z')
+    )
+
+    expect(response.nodes.map((node) => node.id)).toEqual(['pi5'])
+    expect(response.nodes[0]?.history.map((sample) => sample.kpis.cpu)).toEqual([11, 14])
+    expect(response.services.find((service) => service.nodeId === 'pi5' && service.name === 'tailscale')?.state).toBe('up')
+    expect(response.stale).toBe(false)
+  })
 })
 
 describe('homelab status fixtures', () => {
@@ -204,6 +269,29 @@ describe('homelab status fixtures', () => {
     expect(down.services.find((service) => service.nodeId === 'nas' && service.name === 'immich_server')?.state).toBe('down')
   })
 })
+
+function metricRow(
+  date: string,
+  nodeId: string,
+  source: HomelabStatusPayload,
+  cpuPct: number | null
+): HomelabMetricRow {
+  return {
+    ts: Math.floor(new Date(date).getTime() / 1000),
+    node_id: nodeId,
+    cpu_pct: cpuPct,
+    mem_pct: source.kpis.find((kpi) => kpi.key === 'mem')?.value ?? null,
+    temp_c: source.kpis.find((kpi) => kpi.key === 'temp')?.value ?? null,
+    power_w: source.kpis.find((kpi) => kpi.key === 'power')?.value ?? null,
+    load_1m: source.kpis.find((kpi) => kpi.key === 'load')?.value ?? null,
+    meta_json: JSON.stringify({
+      version: source.version,
+      node: source.node,
+      kpis: source.kpis.map(({ key, label, unit, window, tone }) => ({ key, label, unit, window, tone })),
+      services: source.services.map(({ name, detail }) => ({ name, detail }))
+    })
+  }
+}
 
 class FakeD1 implements HomelabD1Database {
   metrics: HomelabMetricRow[] = []
