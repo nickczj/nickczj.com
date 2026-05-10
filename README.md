@@ -37,19 +37,20 @@ The homepage queries blog, now, and currently collections, plus live API data fr
 
 Live system metrics from homelab nodes displayed on the homepage via a push-based architecture:
 
-```
-NAS / Pi 5 / HA Yellow (systemd timer, every 2 min)
+```text
+NAS / Pi 5 (Bun standalone pusher via systemd timer, every 2 min)
+HA Yellow (Rust HAOS local add-on, every 2 min)
   → POST /api/_status/ingest (Bearer token)
     → D1 (node-keyed metrics + service_status tables)
       → GET /api/status (public, 30s cache, fleet response)
         → Homepage (polls every 30s)
 ```
 
-- **Pusher:** `scripts/push-homelab-status.ts` (repo) or `scripts/push-homelab-status-standalone.ts` (self-contained, for deployment)
+- **Pushers:** `scripts/push-homelab-status-standalone.ts` for NAS/Pi; `addons/homelab-status-agent/` for Home Assistant Yellow on HAOS
 - **Ingest endpoint:** `server/api/_status/ingest.post.ts` — validates payload, writes to D1
 - **Read endpoint:** `server/api/status.get.ts` — public, returns latest snapshot + history
 - **Core logic:** `server/utils/homelab-status.ts` — types, validation, D1 read/write, memory fallback
-- **Node identity:** set `HOMELAB_NODE_ID` (`nas`, `pi5`, `ha-yellow`) and optional `HOMELAB_NODE_ROLE` on each pusher
+- **Node identity:** `nas` and `pi5` use env vars; HA Yellow uses add-on options with `node_id: ha-yellow`
 - **D1 schema:** `migrations/0002_structured_homelab_status.sql` + `migrations/0003_fleet_homelab_status.sql` — node-keyed `metrics` and `service_status` tables
 
 ### Local status fixtures
@@ -107,4 +108,7 @@ Two D1 bindings in `wrangler.toml`:
 
 ## Homelab Pusher Deployment
 
-The standalone script (`scripts/push-homelab-status-standalone.ts`) runs on the NAS via systemd timer. See `PROGRESS.md` for setup details.
+The standalone script (`scripts/push-homelab-status-standalone.ts`) runs on the NAS/Pi via systemd timer. Home Assistant Yellow uses the Rust local add-on in `addons/homelab-status-agent/`.
+
+- NAS/Pi setup: `scripts/homelab-pusher-setup.md`
+- HAOS setup: `docs/haos-homelab-status-agent.md`

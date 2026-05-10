@@ -1,0 +1,31 @@
+name: "Homelab Status Agent"
+version: "0.1.0"
+slug: homelab_status_agent
+description: "Push Home Assistant Yellow node metrics to a homelab status API"
+url: "https://github.com/nickczj/nickczj.com"
+arch:
+  - aarch64
+startup: application
+boot: auto
+init: false
+stage: experimental
+
+options:
+  endpoint: "https://nickczj.com/api/_status/ingest"
+  token: null
+  node_id: "ha-yellow"
+  node_name: "Home Assistant Yellow"
+  node_role: "smart home"
+  collector_mode: "haos"
+  interval_seconds: 120
+  dry_run: false
+
+schema:
+  endpoint: url
+  token: password
+  node_id: str
+  node_name: str
+  node_role: str
+  collector_mode: list(haos|linux)
+  interval_seconds: "int(10,3600)"
+  dry_run: bool

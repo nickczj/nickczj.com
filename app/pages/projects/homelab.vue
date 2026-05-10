@@ -72,9 +72,9 @@ useSeoMeta({
         without exposing services to the public internet.
       </p>
       <p>
-        The status data you see above is collected every 2 minutes by a Bun script running on the Pi,
-        pushed to a Cloudflare D1 database, and served through a Cloudflare Pages Function with edge caching.
-        This page polls that same API every 30 seconds.
+        The status data you see above is collected every 2 minutes by Bun pushers on normal Linux nodes
+        and a Rust add-on on Home Assistant Yellow, pushed to a Cloudflare D1 database, and served through
+        a Cloudflare Pages Function with edge caching. This page polls that same API every 30 seconds.
       </p>
 
       <h2>Services</h2>

@@ -101,8 +101,6 @@ const DEFAULT_FLEET_SERVICES = [
   { nodeId: 'nas', name: 'immich_server' },
   { nodeId: 'nas', name: 'paperless' },
   { nodeId: 'pi5', name: 'pihole' },
-  { nodeId: 'ha-yellow', name: 'home-assistant' },
-  { nodeId: 'ha-yellow', name: 'zigbee' },
   { nodeId: 'mesh', name: 'tailscale' }
 ]
 

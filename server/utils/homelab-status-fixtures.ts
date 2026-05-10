@@ -81,10 +81,7 @@ function fixtureNodes(mode: HomelabFixtureMode, now: Date): HomelabStatusNode[] 
       uptimeSeconds: 9 * 86400 + 12 * 3600,
       ageSeconds: 68,
       kpis: { cpu: 5, mem: 39, temp: 45, load: 0.22 },
-      services: [
-        { name: 'home-assistant', state: 'up', detail: 'up' },
-        { name: 'zigbee', state: 'up', detail: 'up' }
-      ]
+      services: []
     }
   ]
 

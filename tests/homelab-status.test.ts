@@ -190,7 +190,7 @@ describe('homelab status fixtures', () => {
     expect(response.unavailable).toBe(false)
     expect(response.stale).toBe(false)
     expect(response.nodes.map((node) => node.id)).toEqual(['nas', 'pi5', 'ha-yellow'])
-    expect(response.services.find((service) => service.nodeId === 'ha-yellow' && service.name === 'home-assistant')?.state).toBe('up')
+    expect(response.services.some((service) => service.nodeId === 'ha-yellow')).toBe(false)
   })
 
   test('builds stale and down fixture states', () => {
