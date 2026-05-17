@@ -11,9 +11,9 @@ Use this for HA Yellow only. NAS and Raspberry Pi 5 should keep using `scripts/p
 - 1-minute load average from `/proc/loadavg`
 - Uptime seconds from `/proc/uptime`
 - Temperature from `/sys/class/thermal` or `/sys/class/hwmon` when exposed
-- No Docker, Home Assistant Core, Zigbee, add-on, or Supervisor service status in v0.1
+- Tailscale add-on state from the Home Assistant Supervisor API
 
-The payload uses node ID `ha-yellow` and an empty `services` array.
+The payload uses node ID `ha-yellow` and reports `tailscale` as a service row. It does not inspect Docker, Home Assistant Core, Zigbee, or other add-ons.
 
 ## Files
 
@@ -69,6 +69,8 @@ node_name: "Home Assistant Yellow"
 node_role: "smart home"
 collector_mode: "haos"
 interval_seconds: 120
+tailscale_enabled: true
+tailscale_addon_slug: "tailscale"
 dry_run: true
 ```
 
@@ -93,11 +95,15 @@ Start the add-on and open logs. The payload should look like:
     { "key": "temp", "label": "temp", "unit": "C", "value": 48.12, "window": "1m", "tone": "ok" },
     { "key": "load", "label": "load", "unit": "", "value": 0.42, "window": "1m", "tone": "ok" }
   ],
-  "services": []
+  "services": [
+    { "name": "tailscale", "state": "up", "detail": "started" }
+  ]
 }
 ```
 
 Temperature may be `null` if HAOS does not expose a usable sensor inside the add-on container.
+
+If the Tailscale add-on is stopped, missing, or not readable through Supervisor, the service row reports `down` or `slow` instead of `up`.
 
 ## Enable Pushes
 
@@ -120,6 +126,7 @@ The response should include a live `ha-yellow` node within about two minutes.
 - It does not need host networking.
 - It does not need privileged mode.
 - It does not need Docker API access.
+- It does need `hassio_api: true` so it can read installed add-on state from Supervisor using `SUPERVISOR_TOKEN`.
 - Do not paste the bearer token into logs or shell history.
 
 ## Updating

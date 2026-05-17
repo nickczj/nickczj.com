@@ -54,6 +54,8 @@ pub struct Config {
     pub node_role: String,
     pub collector_mode: CollectorMode,
     pub interval_seconds: u64,
+    pub tailscale_enabled: bool,
+    pub tailscale_addon_slug: String,
     pub dry_run: bool,
     pub daemon: bool,
 }
@@ -67,6 +69,8 @@ struct OptionsFile {
     node_role: Option<String>,
     collector_mode: Option<CollectorMode>,
     interval_seconds: Option<u64>,
+    tailscale_enabled: Option<bool>,
+    tailscale_addon_slug: Option<String>,
     dry_run: Option<bool>,
 }
 
@@ -143,6 +147,14 @@ impl Config {
                 .or_else(|| env_u64(&env_get, "HOMELAB_INTERVAL_SECONDS"))
                 .or(options.interval_seconds)
                 .unwrap_or(120),
+            tailscale_enabled: env_bool(&env_get, "HOMELAB_TAILSCALE_ENABLED")
+                .unwrap_or(options.tailscale_enabled.unwrap_or(true)),
+            tailscale_addon_slug: first_non_empty([
+                env_string(&env_get, "HOMELAB_TAILSCALE_ADDON_SLUG"),
+                options.tailscale_addon_slug,
+                Some("tailscale".to_string()),
+            ])
+            .expect("default tailscale add-on slug should be present"),
             dry_run,
             daemon: cli.daemon,
         };
@@ -242,6 +254,8 @@ mod tests {
         assert_eq!(config.node_role, "smart home");
         assert_eq!(config.collector_mode, CollectorMode::Haos);
         assert_eq!(config.interval_seconds, 120);
+        assert!(config.tailscale_enabled);
+        assert_eq!(config.tailscale_addon_slug, "tailscale");
         assert!(config.dry_run);
     }
 

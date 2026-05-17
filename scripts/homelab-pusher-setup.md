@@ -1,6 +1,6 @@
 # Homelab Status Pusher — Linux Deployment Guide
 
-How to deploy `scripts/push-homelab-status-standalone.ts` on a normal Linux device as a systemd timer. The script collects CPU, memory, temperature, load, and Docker service states, then POSTs them to `nickczj.com/api/_status/ingest`.
+How to deploy `scripts/push-homelab-status-standalone.ts` on a normal Linux device as a systemd timer. The script collects CPU, memory, temperature, load, Docker service states, and local Tailscale daemon status, then POSTs them to `nickczj.com/api/_status/ingest`.
 
 Currently deployed on the NAS. This guide covers the NAS and Raspberry Pi 5 path. Home Assistant Yellow on HAOS uses the Rust local add-on instead; see `docs/haos-homelab-status-agent.md`.
 
@@ -44,6 +44,12 @@ HOMELAB_NODE_ROLE="docker"     # optional, free-form label
 # Only list containers that actually run on this device.
 # Leave empty or omit to monitor nothing except KPIs.
 HOMELAB_DOCKER_SERVICES="traefik,jellyfin,pihole"
+
+# Tailscale status is enabled by default.
+# The pusher checks systemd first, then validates `tailscale status --json`.
+HOMELAB_TAILSCALE_ENABLED="1"
+HOMELAB_TAILSCALE_UNIT="tailscaled"
+HOMELAB_TAILSCALE_BIN="tailscale"
 ```
 
 Node IDs in use for this TypeScript pusher: `nas`, `pi5`. HA Yellow uses the Rust add-on with `ha-yellow`.
@@ -57,7 +63,7 @@ cd /opt/homelab-pusher
 source .env && HOMELAB_DRY_RUN=1 bun run push-homelab-status-standalone.ts
 ```
 
-You should see a JSON payload printed. Check that KPIs have sensible values and services show `up`/`down`/`slow` as expected.
+You should see a JSON payload printed. Check that KPIs have sensible values and services show `up`/`down`/`slow` as expected. Each NAS/Pi payload should include a node-local `tailscale` service row.
 
 Then do a real push:
 
@@ -74,7 +80,7 @@ Create a oneshot service at `/etc/systemd/system/homelab-pusher.service`:
 ```ini
 [Unit]
 Description=Homelab status pusher
-After=network-online.target docker.service
+After=network-online.target docker.service tailscaled.service
 Wants=network-online.target
 
 [Service]

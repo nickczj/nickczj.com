@@ -61,13 +61,18 @@ async function main() {
 }
 
 export async function collectHomelabStatus(): Promise<HomelabStatusPayload> {
-  const [cpu, mem, temp, load, uptimeSeconds, services] = await Promise.all([
+  const [cpu, mem, temp, load, uptimeSeconds, dockerServices, tailscaleService] = await Promise.all([
     collectCpuPercent(),
     collectMemoryPercent(),
     collectTemperature(),
     collectLoadAverage(),
     collectUptimeSeconds(),
-    collectDockerServices(getServiceNames())
+    collectDockerServices(getServiceNames()),
+    collectTailscaleService()
+  ])
+  const services = mergeServices([
+    ...dockerServices,
+    ...(tailscaleService ? [tailscaleService] : [])
   ])
 
   const kpis: HomelabKpi[] = [
@@ -125,6 +130,21 @@ export async function collectDockerServices(names: string[]) {
   if (!names.length) return []
 
   return Promise.all(names.map(inspectDockerService))
+}
+
+export async function collectTailscaleService(): Promise<HomelabService | null> {
+  if (!isEnabled(process.env.HOMELAB_TAILSCALE_ENABLED, true)) return null
+
+  const unit = process.env.HOMELAB_TAILSCALE_UNIT || 'tailscaled'
+  const serviceState = await systemdServiceState(unit)
+  if (!serviceState.active) {
+    return { name: 'tailscale', state: 'down', detail: serviceState.detail || 'inactive' }
+  }
+
+  const status = await tryExec(process.env.HOMELAB_TAILSCALE_BIN || 'tailscale', ['status', '--json'], 3000)
+  if (!status) return { name: 'tailscale', state: 'slow', detail: 'status unavailable' }
+
+  return parseTailscaleStatus(status)
 }
 
 export function parseCpuStat(input: string): CpuStat | null {
@@ -205,6 +225,14 @@ export function parseDockerInspect(output: string, expectedNames: string[]): Hom
   })
 }
 
+export function parseTailscaleStatus(output: string): HomelabService {
+  try {
+    return tailscaleServiceFromStatus(JSON.parse(output))
+  } catch {
+    return { name: 'tailscale', state: 'slow', detail: 'status unavailable' }
+  }
+}
+
 async function inspectDockerService(name: string): Promise<HomelabService> {
   try {
     const { stdout } = await execFileAsync('docker', ['inspect', '--format', '{{json .}}', name], {
@@ -218,6 +246,40 @@ async function inspectDockerService(name: string): Promise<HomelabService> {
       return { name, state: 'down', detail: 'not found' }
     }
     return { name, state: 'slow', detail: 'docker unavailable' }
+  }
+}
+
+function tailscaleServiceFromStatus(status: unknown): HomelabService {
+  if (!isRecord(status)) return { name: 'tailscale', state: 'slow', detail: 'status unavailable' }
+
+  const backendState = typeof status.BackendState === 'string' ? status.BackendState : ''
+  const detail = tailscaleStateDetail(backendState)
+  if (!backendState) return { name: 'tailscale', state: 'slow', detail: 'status unavailable' }
+  if (backendState === 'Starting') return { name: 'tailscale', state: 'slow', detail }
+  if (backendState !== 'Running') return { name: 'tailscale', state: 'down', detail }
+
+  const self = isRecord(status.Self) ? status.Self : null
+  if (self?.Online === false) return { name: 'tailscale', state: 'down', detail: 'self offline' }
+
+  if (hasTailscaleHealthWarning(status.Health)) {
+    return { name: 'tailscale', state: 'slow', detail: 'health warning' }
+  }
+
+  return { name: 'tailscale', state: 'up', detail: 'running' }
+}
+
+async function systemdServiceState(unit: string) {
+  try {
+    const { stdout } = await execFileAsync('systemctl', ['is-active', unit], {
+      timeout: 1500,
+      maxBuffer: 64 * 1024
+    })
+    const detail = stdout.trim()
+    return { active: detail === 'active', detail }
+  } catch (error) {
+    const stdout = error instanceof Error && 'stdout' in error ? String(error.stdout).trim() : ''
+    const stderr = error instanceof Error && 'stderr' in error ? String(error.stderr).trim() : ''
+    return { active: false, detail: stdout || stderr || 'inactive' }
   }
 }
 
@@ -295,6 +357,31 @@ function getServiceNames() {
     .split(',')
     .map((name) => name.trim())
     .filter(Boolean)
+}
+
+export function mergeServices(services: HomelabService[]) {
+  const byName = new Map<string, HomelabService>()
+  for (const service of services) byName.set(service.name, service)
+  return [...byName.values()]
+}
+
+function isEnabled(value: string | undefined, fallback: boolean) {
+  if (value === undefined || value.trim() === '') return fallback
+  return !['0', 'false', 'no', 'off'].includes(value.trim().toLowerCase())
+}
+
+function hasTailscaleHealthWarning(value: unknown) {
+  return Array.isArray(value) && value.some((item) => {
+    if (typeof item === 'string') return item.trim().length > 0
+    return isRecord(item) && Object.keys(item).length > 0
+  })
+}
+
+function tailscaleStateDetail(value: string) {
+  if (!value) return 'status unavailable'
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .toLowerCase()
 }
 
 function nodeName() {

@@ -47,6 +47,7 @@ HA Yellow (Rust HAOS local add-on, every 2 min)
 ```
 
 - **Pushers:** `scripts/push-homelab-status-standalone.ts` for NAS/Pi; `addons/homelab-status-agent/` for Home Assistant Yellow on HAOS
+- **Tailscale:** reported as a node-scoped service for NAS, Pi 5, and HA Yellow
 - **Ingest endpoint:** `server/api/_status/ingest.post.ts` — validates payload, writes to D1
 - **Read endpoint:** `server/api/status.get.ts` — public, returns latest snapshot + history
 - **Core logic:** `server/utils/homelab-status.ts` — types, validation, D1 read/write, memory fallback

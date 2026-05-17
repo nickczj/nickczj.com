@@ -5,6 +5,8 @@ import {
   parseLoadAverage,
   parseMemoryPercent,
   parseSensorsTemperature,
+  parseTailscaleStatus,
+  mergeServices,
   parseUptimeSeconds
 } from '../scripts/push-homelab-status'
 
@@ -56,6 +58,37 @@ describe('homelab pusher parsers', () => {
       ['grafana', 'down', 'down'],
       ['jellyfin', 'slow', 'starting'],
       ['cf-tunnel', 'down', 'not found']
+    ])
+  })
+
+  test('maps tailscale status json to service states', () => {
+    expect(parseTailscaleStatus(JSON.stringify({
+      BackendState: 'Running',
+      Self: { Online: true },
+      Health: []
+    }))).toEqual({ name: 'tailscale', state: 'up', detail: 'running' })
+
+    expect(parseTailscaleStatus(JSON.stringify({
+      BackendState: 'NeedsLogin',
+      Self: { Online: false }
+    }))).toEqual({ name: 'tailscale', state: 'down', detail: 'needs login' })
+
+    expect(parseTailscaleStatus(JSON.stringify({
+      BackendState: 'Running',
+      Self: { Online: false }
+    }))).toEqual({ name: 'tailscale', state: 'down', detail: 'self offline' })
+
+    expect(parseTailscaleStatus('{')).toEqual({ name: 'tailscale', state: 'slow', detail: 'status unavailable' })
+  })
+
+  test('dedupes service names with later checks winning', () => {
+    expect(mergeServices([
+      { name: 'tailscale', state: 'down', detail: 'not found' },
+      { name: 'pihole', state: 'up', detail: 'up' },
+      { name: 'tailscale', state: 'up', detail: 'running' }
+    ])).toEqual([
+      { name: 'tailscale', state: 'up', detail: 'running' },
+      { name: 'pihole', state: 'up', detail: 'up' }
     ])
   })
 })

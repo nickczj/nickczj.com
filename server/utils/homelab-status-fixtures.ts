@@ -59,7 +59,8 @@ function fixtureNodes(mode: HomelabFixtureMode, now: Date): HomelabStatusNode[] 
       kpis: { cpu: 12, mem: 54, temp: 42, load: 0.74 },
       services: [
         { name: 'immich_server', state: 'up', detail: 'up' },
-        { name: 'paperless', state: 'up', detail: 'up' }
+        { name: 'paperless', state: 'up', detail: 'up' },
+        { name: 'tailscale', state: 'up', detail: 'running' }
       ]
     },
     {
@@ -81,7 +82,9 @@ function fixtureNodes(mode: HomelabFixtureMode, now: Date): HomelabStatusNode[] 
       uptimeSeconds: 9 * 86400 + 12 * 3600,
       ageSeconds: 68,
       kpis: { cpu: 5, mem: 39, temp: 45, load: 0.22 },
-      services: []
+      services: [
+        { name: 'tailscale', state: 'up', detail: 'started' }
+      ]
     }
   ]
 
@@ -106,7 +109,8 @@ function fixtureNodes(mode: HomelabFixtureMode, now: Date): HomelabStatusNode[] 
       kpis: { cpu: 93, mem: 88, temp: 67, load: 6.4 },
       services: [
         { name: 'immich_server', state: 'down', detail: 'down' },
-        { name: 'paperless', state: 'slow', detail: 'starting' }
+        { name: 'paperless', state: 'slow', detail: 'starting' },
+        { name: 'tailscale', state: 'up', detail: 'running' }
       ]
     }
   }

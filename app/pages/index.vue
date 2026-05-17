@@ -100,8 +100,10 @@ const DEFAULT_PRIMARY_KPIS: HomelabKpi[] = [
 const DEFAULT_FLEET_SERVICES = [
   { nodeId: 'nas', name: 'immich_server' },
   { nodeId: 'nas', name: 'paperless' },
+  { nodeId: 'nas', name: 'tailscale' },
   { nodeId: 'pi5', name: 'pihole' },
-  { nodeId: 'mesh', name: 'tailscale' }
+  { nodeId: 'pi5', name: 'tailscale' },
+  { nodeId: 'ha-yellow', name: 'tailscale' }
 ]
 
 const PROJECTS = [
@@ -422,7 +424,7 @@ const fleetNodes = computed(() => {
   return [...defaults, ...extras]
 })
 
-const normalNodes = computed(() => fleetNodes.value.filter((node) => !isDefaultFleetNodeId(node.id)))
+const normalNodes = computed(() => fleetNodes.value.filter((node) => node.id !== PRIMARY_FLEET_NODE.id))
 const liveNodeCount = computed(() => fleetNodes.value.filter((node) => node.status === 'live').length)
 const staleOrWaitingNodeCount = computed(() => fleetNodes.value.length - liveNodeCount.value)
 const serviceRows = computed(() => {
@@ -712,7 +714,7 @@ onBeforeUnmount(() => {
           >
             <div class="row gap-8">
               <span class="dot" />
-              <span class="name">{{ nodeDisplayName(s.nodeId) }} / {{ serviceDisplayName(s.name) }}</span>
+              <span class="name">{{ canonicalNodeId(s.nodeId) }} / {{ serviceDisplayName(s.name) }}</span>
             </div>
             <span class="stat">
               {{ s.detail }}

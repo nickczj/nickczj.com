@@ -1,5 +1,5 @@
 name: "Homelab Status Agent"
-version: "0.1.0"
+version: "0.1.1"
 slug: homelab_status_agent
 description: "Push Home Assistant Yellow node metrics to a homelab status API"
 url: "https://github.com/nickczj/nickczj.com"
@@ -9,6 +9,8 @@ startup: application
 boot: auto
 init: false
 stage: experimental
+hassio_api: true
+hassio_role: default
 
 options:
   endpoint: "https://nickczj.com/api/_status/ingest"
@@ -18,6 +20,8 @@ options:
   node_role: "smart home"
   collector_mode: "haos"
   interval_seconds: 120
+  tailscale_enabled: true
+  tailscale_addon_slug: "tailscale"
   dry_run: false
 
 schema:
@@ -28,4 +32,6 @@ schema:
   node_role: str
   collector_mode: list(haos|linux)
   interval_seconds: "int(10,3600)"
+  tailscale_enabled: bool
+  tailscale_addon_slug: str
   dry_run: bool
