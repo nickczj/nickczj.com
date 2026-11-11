@@ -46,7 +46,9 @@ HOMELAB_NODE_ROLE="docker"     # optional, free-form label
 HOMELAB_DOCKER_SERVICES="traefik,jellyfin,pihole"
 
 # Tailscale status is enabled by default.
-# The pusher checks systemd first, then validates `tailscale status --json`.
+# The pusher reads `tailscale status --json`; if that is unavailable it falls
+# back to checking the systemd unit. This handles hosts/containers with no
+# access to the system bus (for example DietPi).
 HOMELAB_TAILSCALE_ENABLED="1"
 HOMELAB_TAILSCALE_UNIT="tailscaled"
 HOMELAB_TAILSCALE_BIN="tailscale"
@@ -98,6 +100,8 @@ PrivateTmp=yes
 NoNewPrivileges=yes
 ```
 
+If the host sets `GODEBUG` globally (some UGREEN NAS images do via `/etc/profile.d/go.sh`), add `UnsetEnvironment=GODEBUG` under `[Service]`. Otherwise Tailscale's Go runtime aborts when the pusher invokes it from systemd.
+
 Create a timer at `/etc/systemd/system/homelab-pusher.timer`:
 
 ```ini
@@ -129,6 +133,8 @@ systemctl status homelab-pusher.timer
 systemctl list-timers homelab-pusher
 journalctl -u homelab-pusher.service -f   # tail logs
 ```
+
+If the system-level unit fails with `Result=resources`, the host's system manager may not be able to allocate the service (seen on some UGREEN NAS images). A user-level unit works around it: enable lingering with `loginctl enable-linger <your-user>`, place the same unit/timer under `~/.config/systemd/user/`, then use `systemctl --user enable --now homelab-pusher.timer`.
 
 ## Per-device notes
 

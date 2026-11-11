@@ -313,14 +313,16 @@ async function collectTailscaleService(): Promise<HomelabService | null> {
 
   const unit = process.env.HOMELAB_TAILSCALE_UNIT || 'tailscaled'
   const serviceState = await systemdServiceState(unit)
+  const status = await tryExec(process.env.HOMELAB_TAILSCALE_BIN || 'tailscale', ['status', '--json'], 3000)
+
+  // Some hosts (e.g. DietPi containers) have no system bus but still expose
+  // `tailscale status`, so prefer the daemon status whenever it is available.
+  if (status) return parseTailscaleStatus(status)
   if (!serviceState.active) {
     return { name: 'tailscale', state: 'down', detail: serviceState.detail || 'inactive' }
   }
 
-  const status = await tryExec(process.env.HOMELAB_TAILSCALE_BIN || 'tailscale', ['status', '--json'], 3000)
-  if (!status) return { name: 'tailscale', state: 'slow', detail: 'status unavailable' }
-
-  return parseTailscaleStatus(status)
+  return { name: 'tailscale', state: 'slow', detail: 'status unavailable' }
 }
 
 function parseCpuStat(input: string): CpuStat | null {
@@ -548,7 +550,12 @@ function isEnabled(value: string | undefined, fallback: boolean) {
 
 function hasTailscaleHealthWarning(value: unknown) {
   return Array.isArray(value) && value.some((item) => {
-    if (typeof item === 'string') return item.trim().length > 0
+    if (typeof item === 'string') {
+      const warning = item.trim()
+      // Route advertisement is a local routing preference, not a connectivity fault.
+      if (/advertising routes.*--accept-routes is false/i.test(warning)) return false
+      return warning.length > 0
+    }
     return isRecord(item) && Object.keys(item).length > 0
   })
 }

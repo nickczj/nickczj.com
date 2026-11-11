@@ -69,6 +69,18 @@ describe('homelab pusher parsers', () => {
     }))).toEqual({ name: 'tailscale', state: 'up', detail: 'running' })
 
     expect(parseTailscaleStatus(JSON.stringify({
+      BackendState: 'Running',
+      Self: { Online: true },
+      Health: ['Some peers are advertising routes but --accept-routes is false']
+    }))).toEqual({ name: 'tailscale', state: 'up', detail: 'running' })
+
+    expect(parseTailscaleStatus(JSON.stringify({
+      BackendState: 'Running',
+      Self: { Online: true },
+      Health: ['DNS is not ready']
+    }))).toEqual({ name: 'tailscale', state: 'slow', detail: 'health warning' })
+
+    expect(parseTailscaleStatus(JSON.stringify({
       BackendState: 'NeedsLogin',
       Self: { Online: false }
     }))).toEqual({ name: 'tailscale', state: 'down', detail: 'needs login' })

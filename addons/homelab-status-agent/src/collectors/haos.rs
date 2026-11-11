@@ -2,6 +2,7 @@ use std::{env, time::Duration};
 
 use anyhow::Result;
 use serde_json::Value;
+use tracing::warn;
 
 use crate::{
     config::Config,
@@ -23,18 +24,20 @@ pub async fn collect(config: &Config) -> Result<HomelabStatusPayload> {
 
 async fn collect_tailscale_addon_service(config: &Config) -> HomelabService {
     let Some(token) = env::var("SUPERVISOR_TOKEN")
+        .or_else(|_| env::var("HASSIO_TOKEN"))
         .ok()
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
     else {
-        return tailscale_service(HomelabServiceState::Slow, "supervisor unavailable");
+        warn!("SUPERVISOR_TOKEN is not set");
+        return tailscale_service(HomelabServiceState::Slow, "no supervisor token");
     };
 
     let Ok(client) = reqwest::Client::builder()
         .timeout(Duration::from_secs(3))
         .build()
     else {
-        return tailscale_service(HomelabServiceState::Slow, "supervisor unavailable");
+        return tailscale_service(HomelabServiceState::Slow, "supervisor client error");
     };
 
     let response = match client
@@ -44,16 +47,25 @@ async fn collect_tailscale_addon_service(config: &Config) -> HomelabService {
         .await
     {
         Ok(response) => response,
-        Err(_) => return tailscale_service(HomelabServiceState::Slow, "supervisor unavailable"),
+        Err(error) => {
+            warn!(%error, "supervisor addons request failed");
+            return tailscale_service(HomelabServiceState::Slow, "supervisor request failed");
+        }
     };
 
     if !response.status().is_success() {
-        return tailscale_service(HomelabServiceState::Slow, "supervisor unavailable");
+        let status = response.status();
+        warn!(%status, "supervisor addons request rejected");
+        let detail = format!("supervisor HTTP {status}");
+        return tailscale_service(HomelabServiceState::Slow, &detail);
     }
 
     match response.text().await {
         Ok(body) => tailscale_service_from_supervisor_addons(&body, &config.tailscale_addon_slug),
-        Err(_) => tailscale_service(HomelabServiceState::Slow, "supervisor unavailable"),
+        Err(error) => {
+            warn!(%error, "supervisor addons response unreadable");
+            tailscale_service(HomelabServiceState::Slow, "supervisor response unreadable")
+        }
     }
 }
 
@@ -112,6 +124,8 @@ fn addon_installed(addon: &Value) -> bool {
         Some(Value::Bool(value)) => *value,
         Some(Value::String(value)) => matches!(value.as_str(), "true" | "1" | "yes" | "on"),
         Some(Value::Number(value)) => value.as_u64().unwrap_or(0) > 0,
+        // The installed-add-ons endpoint omits this flag or returns null.
+        Some(Value::Null) | None => true,
         _ => false,
     }
 }
@@ -167,6 +181,17 @@ mod tests {
         );
 
         assert_eq!(service.state, HomelabServiceState::Up);
+    }
+
+    #[test]
+    fn treats_missing_installed_flag_as_installed() {
+        let service = tailscale_service_from_supervisor_addons(
+            r#"{"addons":[{"slug":"a0d7b954_tailscale","name":"Tailscale","installed":null,"state":"started"}]}"#,
+            "tailscale",
+        );
+
+        assert_eq!(service.state, HomelabServiceState::Up);
+        assert_eq!(service.detail, "started");
     }
 
     #[test]

@@ -70,11 +70,13 @@ node_role: "smart home"
 collector_mode: "haos"
 interval_seconds: 120
 tailscale_enabled: true
-tailscale_addon_slug: "tailscale"
+tailscale_addon_slug: "a0d7b954_tailscale"
 dry_run: true
 ```
 
 Start with `dry_run: true`. The token is required by the schema, but dry-run will not send it.
+
+The community Tailscale add-on slug is typically `a0d7b954_tailscale`. If the configured slug is not found, the agent falls back to any installed add-on whose name contains “Tailscale”.
 
 ## Dry Run
 
@@ -127,14 +129,17 @@ The response should include a live `ha-yellow` node within about two minutes.
 - It does not need privileged mode.
 - It does not need Docker API access.
 - It does need `hassio_api: true` so it can read installed add-on state from Supervisor using `SUPERVISOR_TOKEN`.
+- It needs `hassio_role: manager` because reading the installed app list is not part of the default role’s info-only access.
+- `run.sh` execs through `/command/with-contenv`; without it, the HA base image’s s6 environment strips `SUPERVISOR_TOKEN`.
 - Do not paste the bearer token into logs or shell history.
 
 ## Updating
 
 After changing files under `addons/homelab-status-agent/`:
 
-1. Copy the updated folder to `/addons/homelab-status-agent`.
+1. Copy the updated folder to `/addons/homelab-status-agent` (from the SSH add-on it is mounted at `/local_apps/homelab-status-agent`).
 2. Increment `version` in `config.yaml` if Home Assistant should show an update.
-3. Check for updates in the local add-on/app store.
-4. Rebuild or reinstall the add-on.
-5. Restart and check logs.
+3. Reload the local app store (`POST /store/reload`) if the new version is not detected.
+4. Check for updates in the local add-on/app store, or call `POST /store/addons/local_homelab_status_agent/update`.
+5. Rebuild or reinstall the add-on.
+6. Restart and check logs.
