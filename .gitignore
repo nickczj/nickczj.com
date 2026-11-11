@@ -25,7 +25,9 @@ logs
 .env.*
 !.env.example
 
+# Local notes and agent docs
 AGENTS.md
 PLAN.md
+todo.md
 
 .secrets

@@ -14,9 +14,9 @@
 - [x] Nuxt Content v3 file-based collections (blog, now, pages, currently)
 - [x] Custom homepage dashboard with live integration strip
 - [x] Shared site shell with nav and page layout
-- [x] Blog index + detail pages (1 published post, 2 draft outlines)
+- [x] Blog index + detail pages (1 published post, 2 outlines in `content/_drafts/`)
 - [x] `/now` collection with monthly focus entries
-- [x] `/uses` page (markdown-backed, sections still WIP)
+- [x] `/uses` page (markdown-backed, filled November 2026; redesign planned)
 - [x] `/colophon` page with stack documentation
 - [x] Dark mode with auto-detection and manual toggle
 - [x] Content collections fully typed in `content.config.ts`
@@ -46,11 +46,21 @@
 - [x] Currently-reading widget (`content/currently` collection)
 - [x] Terminal overlay (`` ` `` or Cmd+K) with 8 commands
 
+## Milestone: Upkeep (shipped)
+
+- [x] Dependency refresh within ranges; audit down from 127 to 5 documented exceptions
+- [x] Node, Bun, and Wrangler pins; typecheck, audit gate, CI, and Dependabot
+- [x] Rust homelab add-on refreshed to 0.1.6 with pinned toolchain and Docker images
+
 ## Milestone: Content & Polish (in progress)
 
-- [~] Publish remaining draft blog posts (vesto-four-layer-caching, goreleaser-homebrew-casks)
-- [~] Fill in `/uses` page content (all sections still TODO markers)
-- [~] Singapore SG yields section: static preview, needs Vesto live rate wiring
+- [x] Draft hygiene: unpublished outlines moved to `content/_drafts/` and out of the indexed `blog` collection
+- [x] `/now` November 2026 entry
+- [x] Fill in `/uses` page content (redesign still planned)
+- [x] `/colophon` GitHub source link and current stack/font/content details
+- [~] Publish remaining draft blog posts from `content/_drafts/`
+- [~] Homelab project page: hardware/services still Pi-5-centric; refresh for the NAS and HA Yellow
+- [~] Singapore SG yields section: static May 2026 snapshot, needs Vesto live rate wiring
 
 ## Milestone: Version Archive (planned)
 
