@@ -29,6 +29,25 @@ export default defineNuxtConfig({
   },
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
+  // Nitro emits these into dist/_headers for Cloudflare Pages.
+  routeRules: {
+    '/**': {
+      headers: {
+        'X-Content-Type-Options': 'nosniff',
+        'Referrer-Policy': 'strict-origin-when-cross-origin'
+      }
+    },
+    '/dump.*.sql': {
+      headers: {
+        'X-Robots-Tag': 'noindex'
+      }
+    },
+    '/__nuxt_content/**': {
+      headers: {
+        'X-Robots-Tag': 'noindex'
+      }
+    }
+  },
   modules: ['@nuxt/content'],
   mdc: {
     components: {
