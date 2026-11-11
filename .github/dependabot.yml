@@ -12,6 +12,8 @@ updates:
         update-types: ["minor", "patch"]
     # Deferred majors: revisit in the quarterly upkeep review.
     ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
       - dependency-name: "katex"
