@@ -188,7 +188,15 @@ const { data: homelabStatus, refresh: refreshHomelabStatus } = await useFetch<Ho
 })
 
 // Currently — playing (Spotify)
-const { data: spotifyData, refresh: refreshSpotify, status: spotifyStatus } = await useFetch('/api/spotify/now', {
+type SpotifyNowResponse = {
+  playing: boolean
+  track?: string
+  artist?: string
+  url?: string
+  error?: boolean
+}
+
+const { data: spotifyData, refresh: refreshSpotify, status: spotifyStatus } = await useFetch<SpotifyNowResponse>('/api/spotify/now', {
   default: () => ({ playing: false, error: false, track: '', artist: '', url: '' })
 })
 
@@ -480,21 +488,22 @@ const homelabMeta = computed(() => {
 const currentlyLines = computed(() => {
   const lines: Array<{ ic: string; lbl: string; val: string; url?: string }> = []
 
-  if (spotifyData.value?.playing) {
+  const spotify = spotifyData.value
+  if (spotify?.playing) {
     lines.push({
       ic: '▶',
       lbl: 'playing',
-      val: `${spotifyData.value.artist} — ${spotifyData.value.track}`,
-      url: spotifyData.value.url || undefined
+      val: `${spotify.artist ?? 'unknown artist'} — ${spotify.track ?? 'unknown track'}`,
+      url: spotify.url || undefined
     })
   } else {
     lines.push({
       ic: '▶',
       lbl: 'playing',
-      val: spotifyData.value?.error
+      val: spotify?.error
         ? 'unavailable'
         : `${SPOTIFY_FALLBACK.artist} — ${SPOTIFY_FALLBACK.track}`,
-      url: spotifyData.value?.error ? undefined : (SPOTIFY_FALLBACK.url || undefined)
+      url: spotify?.error ? undefined : (SPOTIFY_FALLBACK.url || undefined)
     })
   }
 
@@ -536,9 +545,9 @@ const gitHubCells = computed(() => {
   const d = gitHubData.value
   if (!d || 'unavailable' in d || !('weeks' in d)) return null
   const cells: Array<{ w: number; d: number; lvl: number }> = []
-  for (let w = 0; w < d.weeks.length; w++) {
-    for (let day = 0; day < d.weeks[w].length; day++) {
-      cells.push({ w, d: day, lvl: d.weeks[w][day].level })
+  for (const [w, week] of d.weeks.entries()) {
+    for (const [day, cell] of week.entries()) {
+      cells.push({ w, d: day, lvl: cell.level })
     }
   }
   return cells

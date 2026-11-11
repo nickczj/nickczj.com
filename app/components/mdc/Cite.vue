@@ -5,10 +5,8 @@ const slots = useSlots()
 
 const key = computed(() => {
   const vnodes = slots.default?.()
-  if (vnodes?.length) {
-    const first = vnodes[0] as Record<string, unknown>
-    if (typeof first.children === 'string') return first.children.trim()
-  }
+  const first = vnodes?.[0]
+  if (typeof first?.children === 'string') return first.children.trim()
   return ''
 })
 

@@ -9,6 +9,14 @@ function detectBunVersion(): string {
   }
 }
 
+function detectGitCommit(): string {
+  try {
+    return execSync('git rev-parse --short HEAD', { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+  } catch {
+    return ''
+  }
+}
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   runtimeConfig: {
@@ -16,7 +24,7 @@ export default defineNuxtConfig({
       buildNodeVersion: process.version,
       buildBunVersion: detectBunVersion(),
       buildOsInfo: `${os.platform()} ${os.release()}`,
-      buildCommitHash: execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim()
+      buildCommitHash: detectGitCommit()
     }
   },
   compatibilityDate: '2025-07-15',

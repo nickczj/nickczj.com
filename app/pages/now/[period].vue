@@ -2,7 +2,7 @@
 const route = useRoute()
 const period = Array.isArray(route.params.period) ? route.params.period.join('/') : route.params.period
 
-if (!/^\d{4}-\d{2}$/.test(period)) {
+if (typeof period !== 'string' || !/^\d{4}-\d{2}$/.test(period)) {
   throw createError({
     statusCode: 404,
     statusMessage: 'Now entry not found'

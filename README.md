@@ -12,12 +12,26 @@ Personal site built with Nuxt 4, Vue 3, and Bun. Deployed to Cloudflare Pages wi
 
 ## Local Development
 
+Requires Node `24.15.0` and Bun `1.4.4` (see `.nvmrc` and `.bun-version`).
+
 ```bash
 bun install
 bun run dev        # http://localhost:3000
-bun run build      # production build
+bun run build      # production build (Node preset)
+bun run build:cf   # Cloudflare Pages build
 bun run preview    # preview production build locally
 bun test           # run test suite
+bun run typecheck  # vue-tsc typecheck
+bun run check      # tests + typecheck + audit gate
+```
+
+For Cloudflare runtime parity (Content uses D1 at runtime):
+
+```bash
+bun run build:cf
+bunx wrangler pages dev dist \
+  --d1 DB=nickczj-content \
+  --d1 HOMELAB_DB=nickczj-homelab-status
 ```
 
 ## Content
@@ -72,19 +86,28 @@ The pusher still works locally through the memory fallback; once a local push is
 
 ### Cloudflare Pages
 
+This project uses Cloudflare Pages **Direct Upload** (no Git integration). Deploy production from a clean `main`:
+
 ```bash
-# Build with the Cloudflare Pages preset
-NITRO_PRESET=cloudflare_pages bun run build
-# Output: dist/
+bun run deploy
 ```
 
-Deploy via the Cloudflare dashboard or Wrangler CLI. The dashboard build command should be:
+That runs `bun run build:cf` and then the pinned local Wrangler:
 
-```
-bunx wrangler pages deploy
+```bash
+wrangler pages deploy --project-name nickczj-com
 ```
 
-Build output directory: `dist`
+Build output: `dist/`.
+
+If deploying manually, keep the steps separate:
+
+```bash
+bun run build:cf
+bunx wrangler pages deploy dist --project-name nickczj-com
+```
+
+Do not use `bunx wrangler pages deploy` as a Cloudflare dashboard build command — there is no dashboard build for this project.
 
 ### D1 Migrations
 

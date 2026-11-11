@@ -47,7 +47,7 @@ export default defineEventHandler(async (event) => {
     })
 
     if (res.status === 204) {
-      return { playing: false }
+      return { playing: false, track: '', artist: '', url: '', error: false }
     }
 
     if (!res.ok) {
@@ -62,10 +62,11 @@ export default defineEventHandler(async (event) => {
       playing: true,
       track: track.item.name,
       artist: track.item.artists.map((a) => a.name).join(', '),
-      url: track.item.external_urls.spotify
+      url: track.item.external_urls.spotify,
+      error: false
     }
   } catch (e) {
     console.error('spotify/now error:', (e as Error).message)
-    return { playing: false, error: true }
+    return { playing: false, track: '', artist: '', url: '', error: true }
   }
 })

@@ -24,6 +24,8 @@ if (!post.value) {
   })
 }
 
+const tags = computed(() => post.value?.tags ?? [])
+
 useSeoMeta({
   title: () => post.value ? `${post.value.title} | nickczj.com` : 'Blog | nickczj.com',
   description: () => post.value?.description ?? 'Technical notes from nickczj.com.'
@@ -43,8 +45,8 @@ useSeoMeta({
       <h1>{{ post.title }}</h1>
       <div class="entry-meta">
         <time :datetime="post.date">{{ formatDate(post.date) }}</time>
-        <span v-if="post.tags.length" class="tag-list" aria-label="Tags">
-          <span v-for="tag in post.tags" :key="tag" class="tag">{{ tag }}</span>
+        <span v-if="tags.length" class="tag-list" aria-label="Tags">
+          <span v-for="tag in tags" :key="tag" class="tag">{{ tag }}</span>
         </span>
       </div>
       <p class="lede">{{ post.description }}</p>

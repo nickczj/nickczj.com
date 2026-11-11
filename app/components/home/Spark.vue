@@ -45,10 +45,11 @@ const path = computed(() => {
   }
 
   const r = mulberry32(props.seed + props.tick)
-  const pts = 24
-  const xs = Array.from({ length: pts }, (_, i) => (i / (pts - 1)) * props.w)
-  const ys = Array.from({ length: pts }, () => 3 + r() * (props.h - 6))
-  return xs.map((x, i) => (i ? 'L' : 'M') + x.toFixed(1) + ',' + ys[i].toFixed(1)).join(' ')
+  const points = Array.from({ length: 24 }, (_, i) => ({
+    x: (i / 23) * props.w,
+    y: 3 + r() * (props.h - 6)
+  }))
+  return points.map((point, i) => (i ? 'L' : 'M') + point.x.toFixed(1) + ',' + point.y.toFixed(1)).join(' ')
 })
 
 const stroke = computed(() =>

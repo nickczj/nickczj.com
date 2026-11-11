@@ -75,10 +75,8 @@ async function getGitHubError(res: Response): Promise<string> {
 function computeLevels(counts: number[]): [number, number, number] {
   const nonZero = counts.filter((c) => c > 0).sort((a, b) => a - b)
   if (nonZero.length === 0) return [0, 0, 0]
-  const q1 = nonZero[Math.floor(nonZero.length * 0.25)]
-  const q2 = nonZero[Math.floor(nonZero.length * 0.5)]
-  const q3 = nonZero[Math.floor(nonZero.length * 0.75)]
-  return [q1, q2, q3]
+  const quantile = (fraction: number) => nonZero[Math.floor(nonZero.length * fraction)] ?? 0
+  return [quantile(0.25), quantile(0.5), quantile(0.75)]
 }
 
 function levelForCount(count: number, q: [number, number, number]): number {

@@ -34,8 +34,8 @@ useSeoMeta({
       <li v-for="post in posts" :key="post.path" class="entry-card">
         <div class="entry-meta">
           <time :datetime="post.date">{{ formatDate(post.date) }}</time>
-          <span v-if="post.tags.length" class="tag-list" aria-label="Tags">
-            <span v-for="tag in post.tags" :key="tag" class="tag">{{ tag }}</span>
+          <span v-if="post.tags?.length" class="tag-list" aria-label="Tags">
+            <span v-for="tag in post.tags ?? []" :key="tag" class="tag">{{ tag }}</span>
           </span>
         </div>
         <h2>

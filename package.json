@@ -2,15 +2,23 @@
   "name": "nickczj-com",
   "type": "module",
   "private": true,
+  "packageManager": "bun@1.4.4",
+  "engines": {
+    "node": "^22.22.3 || ^24.15.0 || >=26.0.0"
+  },
   "scripts": {
     "build": "nuxt build",
+    "build:cf": "NITRO_PRESET=cloudflare_pages bun run build",
+    "check": "bun test && bun run typecheck && bun run audit",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "homelab:push": "bun run scripts/push-homelab-status.ts",
     "preview": "nuxt preview",
     "test": "bun test",
+    "typecheck": "nuxt typecheck",
+    "audit": "bun audit --audit-level=high --ignore=GHSA-mrhx-c7xc-m3w5",
     "postinstall": "nuxt prepare",
-    "deploy": "NITRO_PRESET=cloudflare_pages bun run build && bunx wrangler pages deploy"
+    "deploy": "bun run build:cf && wrangler pages deploy --project-name nickczj-com"
   },
   "dependencies": {
     "@nuxt/content": "^3.16.2",
@@ -23,5 +31,11 @@
     "remark-math": "^6.0.0",
     "vue": "^3.5.45",
     "vue-router": "^5.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "24",
+    "typescript": "5.9.3",
+    "vue-tsc": "3.3.14",
+    "wrangler": "4.160.0"
   }
 }
