@@ -12,7 +12,7 @@ Personal site built with Nuxt 4, Vue 3, and Bun. Deployed to Cloudflare Pages wi
 
 ## Local Development
 
-Requires Node `24.15.0` and Bun `1.4.4` (see `.nvmrc` and `.bun-version`).
+Requires Node `26.13.0` and Bun `1.4.4` (see `.nvmrc` and `.bun-version`).
 
 ```bash
 bun install
