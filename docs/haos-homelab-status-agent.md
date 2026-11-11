@@ -22,14 +22,29 @@ The add-on lives in:
 ```text
 addons/homelab-status-agent/
 ├── Cargo.toml
+├── Cargo.lock
 ├── Dockerfile
 ├── config.yaml
+├── rust-toolchain.toml
 ├── run.sh
 ├── DOCS.md
 └── src/
 ```
 
 Home Assistant local add-ons are built from the add-on folder itself, so keep the Rust crate inside `addons/homelab-status-agent/`.
+
+## Build Pins
+
+The image build is reproducible: `Dockerfile` pins the Rust builder (`rust:1.99.1-alpine`) and Home Assistant base (`ghcr.io/home-assistant/aarch64-base:3.24-2026.11.0`) images by tag and digest. `rust-toolchain.toml` pins the same Rust version for local `cargo` commands.
+
+Keep the version in sync in `Cargo.toml`, `config.yaml`, and the `BUILD_VERSION` default in `Dockerfile`.
+
+Build locally for the Yellow's architecture:
+
+```bash
+cd addons/homelab-status-agent
+docker buildx build --platform linux/arm64 -t homelab-status-agent:local .
+```
 
 ## Install On HAOS
 
@@ -137,9 +152,11 @@ The response should include a live `ha-yellow` node within about two minutes.
 
 After changing files under `addons/homelab-status-agent/`:
 
-1. Copy the updated folder to `/addons/homelab-status-agent` (from the SSH add-on it is mounted at `/local_apps/homelab-status-agent`).
-2. Increment `version` in `config.yaml` if Home Assistant should show an update.
-3. Reload the local app store (`POST /store/reload`) if the new version is not detected.
-4. Check for updates in the local add-on/app store, or call `POST /store/addons/local_homelab_status_agent/update`.
+1. Increment `version` in `config.yaml`, `Cargo.toml`, and the `BUILD_VERSION` default in `Dockerfile`.
+2. Copy the updated folder to `/addons/homelab-status-agent` (from the SSH add-on it is mounted at `/local_apps/homelab-status-agent`).
+3. Reload the local app store (`ha store reload`) if the new version is not detected.
+4. Check for updates in the local add-on/app store, or run `ha apps update local_homelab_status_agent`.
 5. Rebuild or reinstall the add-on.
 6. Restart and check logs.
+
+Do not keep backups of the add-on folder inside the add-ons directory. The store scans every subfolder, and a backup that still declares the same `slug` can make Supervisor keep serving the old version. Store backups outside the add-ons tree, such as `/share/homelab-status-agent.bak`.

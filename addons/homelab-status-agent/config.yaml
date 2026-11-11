@@ -1,5 +1,5 @@
 name: "Homelab Status Agent"
-version: "0.1.5"
+version: "0.1.6"
 slug: homelab_status_agent
 description: "Push Home Assistant Yellow node metrics to a homelab status API"
 url: "https://github.com/nickczj/nickczj.com"

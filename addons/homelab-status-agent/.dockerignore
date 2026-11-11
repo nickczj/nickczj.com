@@ -1,3 +1,6 @@
 /target
 /.git
 /.DS_Store
+# The Dockerfile pins its own Rust image; keeping this out avoids rustup
+# downloading lint components into the builder stage.
+/rust-toolchain.toml

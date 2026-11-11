@@ -69,7 +69,10 @@ async fn collect_tailscale_addon_service(config: &Config) -> HomelabService {
     }
 }
 
-pub fn tailscale_service_from_supervisor_addons(input: &str, expected_slug: &str) -> HomelabService {
+pub fn tailscale_service_from_supervisor_addons(
+    input: &str,
+    expected_slug: &str,
+) -> HomelabService {
     let Ok(parsed) = serde_json::from_str::<Value>(input) else {
         return tailscale_service(HomelabServiceState::Slow, "supervisor unavailable");
     };
