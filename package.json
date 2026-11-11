@@ -33,7 +33,7 @@
     "vue-router": "^5.5.0"
   },
   "devDependencies": {
-    "@types/node": "24",
+    "@types/node": "26",
     "typescript": "5.9.3",
     "vue-tsc": "3.3.14",
     "wrangler": "4.160.0"
