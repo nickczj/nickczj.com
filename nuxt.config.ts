@@ -27,7 +27,7 @@ export default defineNuxtConfig({
       buildCommitHash: detectGitCommit()
     }
   },
-  compatibilityDate: '2025-07-15',
+  compatibilityDate: '2026-11-01',
   devtools: { enabled: true },
   // Nitro emits these into dist/_headers for Cloudflare Pages.
   routeRules: {
