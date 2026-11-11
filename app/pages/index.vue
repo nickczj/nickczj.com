@@ -818,7 +818,7 @@ onBeforeUnmount(() => {
       <section class="card">
         <div class="card-h">
           <div class="card-title">sg yields</div>
-          <div class="card-meta">demo snapshot</div>
+          <div class="card-meta">static snapshot · may 2026</div>
         </div>
         <div
           v-for="y in YIELDS"
@@ -832,8 +832,7 @@ onBeforeUnmount(() => {
           </span>
         </div>
         <div class="y-foot">
-          <span class="live-dot" />
-          <span>preview · vesto wiring soon</span>
+          <span>not a live feed · verify before use</span>
         </div>
       </section>
     </div>
