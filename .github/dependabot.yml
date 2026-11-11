@@ -10,6 +10,14 @@ updates:
       javascript:
         patterns: ["*"]
         update-types: ["minor", "patch"]
+    # Deferred majors: revisit in the quarterly upkeep review.
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "katex"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "better-sqlite3"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "cargo"
     directory: "/addons/homelab-status-agent"
