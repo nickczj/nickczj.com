@@ -1,7 +1,7 @@
 ---
 title: Colophon
 description: How nickczj.com is built — the stack, the choices, and the trade-offs.
-updated: 2026-11-11
+updated: 2026-11-12
 ---
 
 This site is built and deployed deliberately small. The goal is for the site itself to be a working showcase of the stack, not a generic portfolio shell.
