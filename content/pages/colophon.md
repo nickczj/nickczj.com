@@ -9,9 +9,9 @@ This site is built and deployed deliberately small. The goal is for the site its
 ## Stack
 
 - **Framework:** [Nuxt 4](https://nuxt.com) on [Vue 3](https://vuejs.org). Pages are prerendered at build time; the live integrations run as Cloudflare Pages Functions.
-- **Runtime and package manager:** [Bun](https://bun.sh) for installs, tests, and the build. Node 24 is pinned for tooling and CI.
+- **Runtime and package manager:** [Bun](https://bun.sh) for installs, tests, and the build. Node 26 is pinned for tooling and CI.
 - **Content pipeline:** [`@nuxt/content`](https://content.nuxt.com) v3. Markdown files in `content/`, indexed at build time with SQLite (`better-sqlite3`) and served from D1 in production.
-- **Hosting:** [Cloudflare Pages](https://pages.cloudflare.com). Static prerendered output, D1 for homelab telemetry, and Pages Functions for the APIs. No origin server to babysit.
+- **Hosting:** [Cloudflare Pages](https://pages.cloudflare.com). Static prerendered output, D1 for content and homelab telemetry, and Pages Functions for the APIs. No origin server to babysit.
 - **Live data:** homelab status from D1, GitHub contributions via the GraphQL API, Spotify now-playing via OAuth, and weather from Open-Meteo.
 - **Math:** KaTeX via `remark-math` and `rehype-katex` for the finance and technical write-ups.
 - **Styling:** Plain CSS. Shared shell styles live in `app/app.vue`; the homepage dashboard lives in `app/assets/home.css`. No Tailwind, no CSS-in-JS, no design system — the page count is small enough that a few hundred lines of CSS does the job.

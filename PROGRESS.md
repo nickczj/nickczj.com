@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last updated: 2026-11-11
+Last updated: 2026-11-12
 
 ## Legend
 
@@ -21,10 +21,13 @@ Last updated: 2026-11-11
 ## Tooling & Upkeep
 
 - [x] Dependencies refreshed within ranges (Nuxt 4.6.4, Content 3.16.2, Vue 3.5.45)
+- [x] Node 26.13.0, Bun 1.4.4, Wrangler 4.160.1, and `@types/node` 26 pinned
+- [x] Major decisions recorded: Node 26 and better-sqlite3 13 upgraded; KaTeX 0.16.47 and TypeScript 5.9.3 kept
 - [x] Audit reduced from 127 advisories to the documented build-time/upstream exceptions
-- [x] Node, Bun, and Wrangler pinned; `.nvmrc` and `.bun-version` added
 - [x] `bun run check` gate (tests, typecheck, audit)
 - [x] GitHub Actions CI and Dependabot
+- [x] Cloudflare compatibility dates set to 2026-11-01; dump noindex and baseline security headers configured
+- [x] Secrets rotated for homelab ingest, Spotify, and GitHub
 - [x] Rust homelab add-on refreshed: Rust 1.99.1, pinned Docker images, Cargo lockfile, `cargo audit` clean
 
 ## Pages & Routes
