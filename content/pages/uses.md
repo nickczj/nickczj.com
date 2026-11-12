@@ -1,7 +1,7 @@
 ---
 title: Uses
 description: Hardware, OS, terminal, editor, and the rest of my working setup.
-updated: 2026-11-11
+updated: 2026-11-12
 ---
 
 A running list of the hardware and software I actually use day to day. Updated when something changes, not on a schedule. Inspired by [uses.tech](https://uses.tech/).
