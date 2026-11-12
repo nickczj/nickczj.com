@@ -1,3 +1,5 @@
+> Historical planning notes. This file captures the original push-vs-pull rationale and first setup. The implementation uses D1, not KV. Current deployment guides: `scripts/homelab-pusher-setup.md` for NAS/Pi and `docs/haos-homelab-status-agent.md` for HA Yellow.
+
 don't expose the homelab at all — invert the flow and push status outward to a Cloudflare KV store, then have your public site read from that.
 Why push beats pull here
 You've explicitly drawn a privacy boundary with Tailscale. Punching a hole back through it (Cloudflare Tunnel for status, or Tailscale Funnel) re-creates an inbound attack surface for what's basically a vanity widget. It also couples uptime of nickczj.com to your home internet — your CV literally mentions "avoid SPOF in infra" as a learning, and home ISPs are a textbook SPOF.
@@ -42,7 +44,7 @@ bunx wrangler pages download config "$PROJECT" --force
 Review the generated wrangler.toml or wrangler.jsonc. For this repo, make sure it includes:
 
 pages_build_output_dir = "dist"
-compatibility_date = "2025-07-15"
+compatibility_date = "2026-11-01"
 compatibility_flags = ["nodejs_compat"]
 
 3. Create D1 databases
@@ -71,18 +73,23 @@ bunx wrangler pages secret put HOMELAB_STATUS_TOKEN --project-name "$PROJECT"
 Paste the generated token when prompted.
 
 6. Deploy with the Cloudflare Pages preset
-For dashboard/Git deployment, set:
 
-Build command: NITRO_PRESET=cloudflare_pages bun run build
-Build output directory: dist
+This project uses Cloudflare Pages Direct Upload. Build and deploy with:
 
-For direct upload testing:
-On the homelab host:
+bun run deploy
+
+Or manually:
+
+bun run build:cf
+bunx wrangler pages deploy dist --project-name "$PROJECT"
+
+On a NAS/Pi pusher host, use an env file rather than shell history:
 
 export HOMELAB_STATUS_ENDPOINT="https://nickczj.com/api/_status/ingest"
 export HOMELAB_STATUS_TOKEN="<same token>"
-export HOMELAB_NODE_NAME="homelab-v3"
-export HOMELAB_DOCKER_SERVICES="traefik,grafana,home-assistant,jellyfin,vesto-dev,cf-tunnel"
+export HOMELAB_NODE_ID="nas"          # or "pi5"
+export HOMELAB_NODE_NAME="UGREEN NAS" # optional display name
+export HOMELAB_DOCKER_SERVICES="traefik,immich_server,jellyfin,paperless,suwayomi,beszel"
 
 Dry-run first:
 

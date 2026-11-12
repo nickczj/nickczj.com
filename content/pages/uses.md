@@ -28,7 +28,7 @@ A running list of the hardware and software I actually use day to day. Updated w
 
 ## Languages and runtimes
 
-- **Node:** managed with nvm; currently 24.15.0.
+- **Node:** managed with nvm; currently 26.13.0.
 - **Bun:** 1.4.4, used for this site and newer JS/TS tooling.
 - **Go:** 1.26.0 from the official installer.
 - **Python:** uv for project environments.

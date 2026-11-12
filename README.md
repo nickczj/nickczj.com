@@ -7,7 +7,7 @@ Personal site built with Nuxt 4, Vue 3, and Bun. Deployed to Cloudflare Pages wi
 - **Framework:** Nuxt 4 + Vue 3 + Bun
 - **Content:** Nuxt Content v3 (file-based, markdown)
 - **Hosting:** Cloudflare Pages (static prerender + serverless functions)
-- **Database:** Cloudflare D1 (homelab telemetry)
+- **Database:** Cloudflare D1 (content and homelab telemetry)
 - **Styling:** Plain CSS (no Tailwind)
 
 ## Local Development
@@ -93,7 +93,7 @@ This project uses Cloudflare Pages **Direct Upload** (no Git integration). Deplo
 bun run deploy
 ```
 
-That runs `bun run build:cf` and then the pinned local Wrangler:
+That runs `bun run build:cf` and then pinned Wrangler `4.160.1`:
 
 ```bash
 wrangler pages deploy --project-name nickczj-com
@@ -119,10 +119,19 @@ bunx wrangler d1 migrations apply HOMELAB_DB --remote
 
 ### Secrets
 
+Required Pages secrets:
+
+- `HOMELAB_STATUS_TOKEN` — NAS/Pi pushers and the HA Yellow add-on
+- `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN` — Spotify now-playing; refresh with `bun run scripts/spotify-auth.ts`
+- `GITHUB_TOKEN` — classic PAT with `read:user` for the contribution graph
+
+Set each one interactively:
+
 ```bash
-# Set the ingest auth token on Cloudflare Pages
-bunx wrangler pages secret put HOMELAB_STATUS_TOKEN --project-name nickczj-com
+bunx wrangler pages secret put <NAME> --project-name nickczj-com
 ```
+
+After rotating a secret, deploy a fresh build and verify the relevant API (`/api/status`, `/api/spotify/now`, or `/api/github/contributions`). Never commit `.env` or `.secrets`.
 
 ### Wrangler Config
 

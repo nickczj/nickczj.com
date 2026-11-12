@@ -49,7 +49,11 @@
 ## Milestone: Upkeep (shipped)
 
 - [x] Dependency refresh within ranges; audit down from 127 to 5 documented exceptions
-- [x] Node, Bun, and Wrangler pins; typecheck, audit gate, CI, and Dependabot
+- [x] Node 26.13.0, Bun 1.4.4, Wrangler 4.160.1, and `@types/node` 26 pinned
+- [x] Node 26 and better-sqlite3 13.0.3 upgraded; KaTeX 0.16.47 and TypeScript 5.9.3 deliberately kept
+- [x] Typecheck, audit gate, CI, and Dependabot
+- [x] Cloudflare compatibility dates 2026-11-01; dump noindex and baseline security headers
+- [x] Homelab, Spotify, and GitHub secrets rotated
 - [x] Rust homelab add-on refreshed to 0.1.6 with pinned toolchain and Docker images
 
 ## Milestone: Content & Polish (in progress)
