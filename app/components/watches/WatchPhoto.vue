@@ -34,6 +34,7 @@ const frameStyle = computed(() => ({
   <a
     v-if="zoom && sources"
     class="watch-photo"
+    :class="{ 'is-product': sources.product }"
     :href="sources.full"
     target="_blank"
     rel="noopener"
@@ -55,7 +56,7 @@ const frameStyle = computed(() => ({
       >
     </picture>
   </a>
-  <div v-else class="watch-photo" :style="frameStyle">
+  <div v-else class="watch-photo" :class="{ 'is-product': sources?.product }" :style="frameStyle">
     <picture v-if="sources">
       <source type="image/avif" :srcset="sources.avif" :sizes="sizes">
       <img
@@ -93,6 +94,17 @@ const frameStyle = computed(() => ({
 
 .watch-photo img {
   object-fit: cover;
+}
+
+/* Product shots sit on a plain tile whose colour is the frame's background,
+   so show them whole; any leftover space blends into the tile. */
+.watch-photo.is-product img {
+  object-fit: contain;
+}
+
+/* Take the glare off white tiles on the dark theme. */
+:global([data-theme="dark"]) .watch-photo.is-product {
+  filter: brightness(0.9);
 }
 
 a.watch-photo:focus-visible {

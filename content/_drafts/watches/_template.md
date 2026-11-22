@@ -35,8 +35,12 @@ water_resistance_m: 100
 crystal: sapphire
 dial: black
 strap: steel bracelet
-photos:                  # ids from `bun run watches:photos <slug> <files>`
-  - id: hero
+photos:                  # ids from `bun run watches:photos <slug> <files>`; the first is the card and hero
+  - id: product          # a maker's shot: `bun run watches:photos <slug> <file> --product --id product`
+    alt: Describe the photo for screen readers
+    credit: Brand        # required for product shots
+    source: https://brand.example/watch
+  - id: hero             # your own photos need only id and alt
     alt: Describe the photo for screen readers
 accuracy:                # timegrapher or app readings, seconds per day
   - date: 2026-11-01

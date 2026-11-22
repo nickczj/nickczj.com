@@ -24,6 +24,10 @@ crystal: sapphire, anti-reflective underside
 dial: silver sunray, applied indexes, pink hands
 strap: steel and rose gold cap bracelet, folding clasp
 photos:
+  - id: product
+    alt: Longines product photo of the Record with a silver sunray dial, rose gold bezel and crown, and a steel and rose gold bracelet
+    credit: Longines
+    source: https://www.longines.com/en-sg/p/watch-record-l2-820-5-72-7
   - id: dial
     alt: Longines Record with a silver sunray dial, rose gold bezel and two-tone bracelet, lying on a wooden table
   - id: caseback

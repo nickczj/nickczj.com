@@ -2,9 +2,16 @@
 /**
  * Prepare watch photos for nickczj.com/watches.
  *
- *   bun run watches:photos <slug> <photo...> [--upload] [--bucket <name>]
+ *   bun run watches:photos <slug> <photo...> [--product] [--id <id>] [--upload] [--bucket <name>]
  *
- * Each input becomes a photo id taken from its file name (`hero.jpg` → `hero`).
+ * Each input becomes a photo id taken from its file name (`hero.jpg` → `hero`),
+ * or from `--id` when there is a single input.
+ *
+ * `--product` is for a maker's product shot (a cut-out or a plain background):
+ * it trims to the watch, adds even margins, and pads to a 4:5 tile on the
+ * image's own background (white for transparent images), so brand photos line
+ * up in the grid. Credit the maker in the frontmatter (`credit`, `source`).
+ *
  * The script:
  *   1. applies EXIF orientation, converts to sRGB, and strips every metadata
  *      block (EXIF, GPS, XMP, IPTC, ICC), then checks that the output has none;
@@ -81,12 +88,99 @@ async function assertNoMetadata(buffer: Buffer, label: string): Promise<void> {
   }
 }
 
+/** Product tiles are 4:5, like the cards. */
+export const PRODUCT_ASPECT = 4 / 5
+/** Margin around the watch, as a share of its longer side. */
+export const PRODUCT_MARGIN = 0.08
+
+type Rgb = { r: number, g: number, b: number }
+
+/**
+ * Turn a maker's product shot into a tile: find the watch against a transparent
+ * or plain background, crop to it, add margins, and pad towards 4:5 with the
+ * background colour. An edge the watch already touches (a strap cut off by the
+ * frame) gets no margin, so the cut stays at the tile's edge.
+ */
+export async function productPlate(input: Buffer): Promise<{ buffer: Buffer, background: Rgb }> {
+  const { data, info } = await sharp(input).autoOrient().ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  const { width: W, height: H } = info
+  const at = (x: number, y: number) => (y * W + x) * 4
+
+  const corners = [at(0, 0), at(W - 1, 0), at(0, H - 1), at(W - 1, H - 1)]
+  const transparent = corners.every(i => data[i + 3]! < 16)
+  const background: Rgb = transparent
+    ? { r: 255, g: 255, b: 255 }
+    : {
+        r: Math.round(corners.reduce((sum, i) => sum + data[i]!, 0) / 4),
+        g: Math.round(corners.reduce((sum, i) => sum + data[i + 1]!, 0) / 4),
+        b: Math.round(corners.reduce((sum, i) => sum + data[i + 2]!, 0) / 4)
+      }
+
+  let left = W, right = -1, top = H, bottom = -1
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = at(x, y)
+      const alpha = data[i + 3]!
+      const content = transparent
+        ? alpha > 12
+        : alpha > 12 && Math.max(
+          Math.abs(data[i]! - background.r),
+          Math.abs(data[i + 1]! - background.g),
+          Math.abs(data[i + 2]! - background.b)
+        ) > 18
+      if (!content) continue
+      if (x < left) left = x
+      if (x > right) right = x
+      if (y < top) top = y
+      if (y > bottom) bottom = y
+    }
+  }
+  if (right < 0) throw new Error('could not find the watch against the background')
+
+  const cw = right - left + 1
+  const ch = bottom - top + 1
+  const bleeds = { left: left <= 1, right: right >= W - 2, top: top <= 1, bottom: bottom >= H - 2 }
+  const margin = Math.round(PRODUCT_MARGIN * Math.max(cw, ch))
+  const pad = {
+    left: bleeds.left ? 0 : margin,
+    right: bleeds.right ? 0 : margin,
+    top: bleeds.top ? 0 : margin,
+    bottom: bleeds.bottom ? 0 : margin
+  }
+
+  // Grow the short axis towards 4:5, only on sides the watch doesn't touch.
+  const share = (extra: number, a: 'left' | 'top', b: 'right' | 'bottom') => {
+    if (bleeds[a] && bleeds[b]) return
+    if (bleeds[a]) pad[b] += extra
+    else if (bleeds[b]) pad[a] += extra
+    else {
+      pad[a] += Math.floor(extra / 2)
+      pad[b] += Math.ceil(extra / 2)
+    }
+  }
+  const w = cw + pad.left + pad.right
+  const h = ch + pad.top + pad.bottom
+  if (w / h < PRODUCT_ASPECT) share(Math.round(h * PRODUCT_ASPECT) - w, 'left', 'right')
+  else if (w / h > PRODUCT_ASPECT) share(Math.round(w / PRODUCT_ASPECT) - h, 'top', 'bottom')
+
+  const buffer = await sharp(data, { raw: { width: W, height: H, channels: 4 } })
+    .extract({ left, top, width: cw, height: ch })
+    .extend({ ...pad, background: { ...background, alpha: 1 } })
+    .flatten({ background })
+    .png()
+    .toBuffer()
+  return { buffer, background }
+}
+
 export async function processPhoto(
-  input: Buffer,
-  options: { slug: string, id: string, outDir?: string }
+  original: Buffer,
+  options: { slug: string, id: string, outDir?: string, product?: boolean }
 ): Promise<ProcessedPhoto> {
   const { slug, id } = options
   const outDir = options.outDir ?? DEFAULT_OUT_DIR
+
+  const plate = options.product ? await productPlate(original) : null
+  const input = plate?.buffer ?? original
 
   const meta = await sharp(input).metadata()
   const width = meta.autoOrient?.width ?? meta.width
@@ -94,9 +188,11 @@ export async function processPhoto(
   if (!width || !height) throw new Error(`${slug}/${id}: could not read image dimensions`)
   if (width < 800) console.warn(`  ! ${slug}/${id} is only ${width}px wide; it will look soft on large screens`)
 
-  const v = createHash('sha256').update(input).update(`pipeline-${PIPELINE_VERSION}`).digest('hex').slice(0, 10)
+  const hash = createHash('sha256').update(original).update(`pipeline-${PIPELINE_VERSION}`)
+  if (plate) hash.update('product')
+  const v = hash.digest('hex').slice(0, 10)
   const widths = variantWidths(width)
-  const { dominant } = await sharp(input).autoOrient().stats()
+  const color = plate ? plate.background : (await sharp(input).autoOrient().stats()).dominant
 
   const dir = join(outDir, 'watches', slug)
   await mkdir(dir, { recursive: true })
@@ -120,7 +216,14 @@ export async function processPhoto(
 
   const largest = widths[widths.length - 1]!
   return {
-    entry: { v, w: largest, h: Math.round((largest * height) / width), widths, color: toHex(dominant) },
+    entry: {
+      v,
+      w: largest,
+      h: Math.round((largest * height) / width),
+      widths,
+      color: toHex(color),
+      ...(plate ? { product: true } : {})
+    },
     files
   }
 }
@@ -172,18 +275,22 @@ async function upload(files: OutputFile[], bucket: string): Promise<void> {
 }
 
 function usage(): never {
-  console.error('usage: bun run watches:photos <slug> <photo...> [--upload] [--bucket <name>]')
+  console.error('usage: bun run watches:photos <slug> <photo...> [--product] [--id <id>] [--upload] [--bucket <name>]')
   process.exit(2)
 }
 
 async function main(argv: string[]): Promise<void> {
   const positional: string[] = []
   let shouldUpload = false
+  let product = false
+  let explicitId: string | undefined
   let bucket = process.env.WATCH_MEDIA_BUCKET || DEFAULT_BUCKET
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!
     if (arg === '--upload') shouldUpload = true
+    else if (arg === '--product') product = true
+    else if (arg === '--id') explicitId = argv[++i] ?? usage()
     else if (arg === '--bucket') bucket = argv[++i] ?? usage()
     else if (arg === '-h' || arg === '--help') usage()
     else if (arg.startsWith('--')) usage()
@@ -193,6 +300,7 @@ async function main(argv: string[]): Promise<void> {
   const [slug, ...inputs] = positional
   if (!slug || !inputs.length) usage()
   if (!SLUG_PATTERN.test(slug)) throw new Error(`slug must be kebab-case: ${slug}`)
+  if (explicitId !== undefined && inputs.length !== 1) throw new Error('--id needs exactly one photo')
   if (!existsSync(join(ROOT, 'content', 'watches', `${slug}.md`))) {
     console.warn(`  ! content/watches/${slug}.md does not exist yet`)
   }
@@ -203,9 +311,9 @@ async function main(argv: string[]): Promise<void> {
 
   try {
     for (const input of inputs) {
-      const id = photoIdFromFile(input)
-      if (!SLUG_PATTERN.test(id)) throw new Error(`${input}: cannot derive a photo id from the file name`)
-      const result = await processPhoto(await readInput(input, scratch), { slug, id })
+      const id = explicitId ?? photoIdFromFile(input)
+      if (!SLUG_PATTERN.test(id)) throw new Error(`${input}: cannot derive a photo id; pass --id`)
+      const result = await processPhoto(await readInput(input, scratch), { slug, id, product })
       manifest[slug] = { ...manifest[slug], [id]: result.entry }
       processed.push({ id, files: result.files })
       console.log(`  ✓ ${slug}/${id}  ${result.entry.w}×${result.entry.h}  widths ${result.entry.widths.join('/')}  ${result.entry.v}`)
@@ -224,7 +332,11 @@ async function main(argv: string[]): Promise<void> {
   }
 
   console.log('\nReference them in the watch frontmatter:\n\nphotos:')
-  for (const { id } of processed) console.log(`  - id: ${id}\n    alt: ""`)
+  for (const { id } of processed) {
+    console.log(`  - id: ${id}\n    alt: ""`)
+    if (product) console.log(`    credit: ""        # the maker, e.g. Longines\n    source: ""        # https page the image came from`)
+  }
+  if (product) console.log('\nPut the product shot first so it is the card and hero image.')
 }
 
 if (import.meta.main) {

@@ -48,9 +48,14 @@ const watchCase = z.object({
   back: z.string().optional()
 }).strict()
 
+// Your own photos need only an id and alt text. A maker's product shot also
+// names the maker (`credit`, shown under the photo) and the https page it came
+// from (`source`); `tests/watches-content.test.ts` requires both for product shots.
 const photo = z.object({
   id: slug,
-  alt: z.string().min(1)
+  alt: z.string().min(1),
+  credit: z.string().min(1).optional(),
+  source: z.string().url().startsWith('https://').optional()
 }).strict()
 
 const accuracyReading = z.object({

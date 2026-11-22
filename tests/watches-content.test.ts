@@ -72,6 +72,17 @@ describe('watch content', () => {
           expect(RESERVED_SLUGS as readonly string[]).not.toContain(slug)
         })
 
+        test('product shots credit the maker and link to where they came from', () => {
+          const parsed = watchFrontmatterSchema.safeParse(data)
+          if (!parsed.success) return
+          const uncredited = parsed.data.photos
+            .filter(photo => manifest[slug]?.[photo.id]?.product && !(photo.credit && photo.source))
+            .map(photo => photo.id)
+          if (uncredited.length) throw new Error(`add credit and source for: ${uncredited.join(', ')}`)
+          const sourceOnly = parsed.data.photos.filter(photo => photo.source && !photo.credit).map(photo => photo.id)
+          if (sourceOnly.length) throw new Error(`a source needs a credit: ${sourceOnly.join(', ')}`)
+        })
+
         test('every listed photo has been processed', () => {
           const parsed = watchFrontmatterSchema.safeParse(data)
           if (!parsed.success) return

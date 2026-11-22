@@ -23,6 +23,10 @@ crystal: sapphire
 dial: beige, red and blue hands, gilded star
 strap: brown croc-grain leather, pin buckle
 photos:
+  - id: product
+    alt: Sea-Gull product photo of the 1963 reissue with a cream dial, blue chronograph hands and a red seconds hand, on a black leather strap
+    credit: Sea-Gull
+    source: https://en.seagullwatch.com/products/seagull-1963-chronograph-watch-times-edition-reissue-37-3mm-1963a
   - id: dial
     alt: Sea-Gull 1963 chronograph with a cream dial, red star, blue hands and a red seconds hand, on a brown leather strap
   - id: strap

@@ -28,13 +28,14 @@ const detail = computed(() => hasWriteUp(props.watch))
         <template v-else>{{ watch.title }}</template>
       </h2>
       <p>{{ watch.description }}</p>
-      <div v-if="watch.tags?.length || (detail && watch.link)" class="entry-meta">
+      <div v-if="watch.tags?.length || (detail && watch.link) || photo?.credit" class="entry-meta">
         <span v-if="watch.tags?.length" class="tag-list" aria-label="Tags">
           <span v-for="tag in watch.tags" :key="tag" class="tag">{{ tag }}</span>
         </span>
         <a v-if="detail && watch.link" :href="watch.link" target="_blank" rel="noopener">
           Official page<span class="external" aria-hidden="true"> ↗</span>
         </a>
+        <span v-if="photo?.credit" class="admired-watch-credit">Photo: {{ photo.credit }}</span>
       </div>
     </div>
     <WatchPhoto
@@ -67,6 +68,10 @@ const detail = computed(() => hasWriteUp(props.watch))
   font-size: 0.72rem;
   font-weight: 800;
   text-transform: uppercase;
+}
+
+.admired-watch-credit {
+  font-size: 0.8rem;
 }
 
 .admired-watch h2 {

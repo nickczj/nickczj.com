@@ -25,6 +25,8 @@ const admired = computed(() => watch.value?.status === 'admired')
 const photos = computed(() => watch.value?.photos ?? [])
 const hero = computed(() => photos.value[0])
 const gallery = computed(() => photos.value.slice(1))
+// Under a credited maker's photo, label the rest so they aren't read as the maker's too.
+const ownGallery = computed(() => Boolean(hero.value?.credit) && gallery.value.length > 0 && gallery.value.every(photo => !photo.credit))
 const specs = computed(() => (watch.value ? specRows(watch.value) : []))
 const readings = computed(() => watch.value?.accuracy ?? [])
 const mechanical = computed(() => (watch.value ? isMechanical(watch.value.movement.type) : false))
@@ -88,6 +90,12 @@ useSeoMeta({
         eager
         zoom
       />
+      <p v-if="hero.credit" class="photo-credit">
+        Photo:
+        <a v-if="hero.source" :href="hero.source" target="_blank" rel="noopener">{{ hero.credit }}</a>
+        <template v-else>{{ hero.credit }}</template>
+      </p>
+      <p v-if="ownGallery" class="watch-gallery-label">My photos</p>
       <div v-if="gallery.length" class="watch-thumbs">
         <WatchPhoto
           v-for="photo in gallery"
@@ -159,6 +167,26 @@ h1 {
 /* Tall shots letterbox on their own dominant colour instead of being cropped. */
 .watch-hero :deep(img) {
   object-fit: contain;
+}
+
+/* A maker's tile is already 4:5 and padded, so it needs no letterboxing; keep
+   it to a sensible size instead of the full column. */
+.watch-hero.is-product {
+  width: min(100%, 30rem);
+  max-height: none;
+}
+
+.photo-credit {
+  margin: -0.35rem 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.watch-gallery-label {
+  margin: 0.75rem 0 0;
+  color: var(--heading);
+  font-size: 0.92rem;
+  font-weight: 650;
 }
 
 .watch-thumbs {

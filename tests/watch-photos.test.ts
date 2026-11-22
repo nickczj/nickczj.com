@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import sharp from 'sharp'
 import { photoSources, type PhotoManifest } from '../shared/watches/format'
-import { photoIdFromFile, processPhoto, variantWidths } from '../scripts/watch-photos'
+import { photoIdFromFile, processPhoto, productPlate, variantWidths } from '../scripts/watch-photos'
 
 const dirs: string[] = []
 afterAll(async () => {
@@ -91,6 +91,103 @@ describe('watch photo pipeline', () => {
     expect(sources!.fallback).toBe('https://media.example/watches/test-watch/hero.abc123-1600.jpg')
     expect(sources!.full).toBe('https://media.example/watches/test-watch/hero.abc123-2400.jpg')
     expect(sources!.social).toBe('https://media.example/watches/test-watch/hero.abc123-1600.jpg')
+    expect(sources!.product).toBe(false)
     expect(photoSources(manifest, 'https://media.example', 'test-watch', 'missing')).toBeNull()
+  })
+})
+
+/** A dark "watch" rectangle at (left, top) on a canvas of the given background. */
+async function productShot(options: {
+  width: number
+  height: number
+  watch: { left: number, top: number, width: number, height: number }
+  background: { r: number, g: number, b: number, alpha: number }
+}): Promise<Buffer> {
+  const { watch } = options
+  const body = await sharp({ create: { width: watch.width, height: watch.height, channels: 4, background: { r: 30, g: 30, b: 35, alpha: 1 } } })
+    .png()
+    .toBuffer()
+  return sharp({ create: { width: options.width, height: options.height, channels: 4, background: options.background } })
+    .composite([{ input: body, left: watch.left, top: watch.top }])
+    .png()
+    .toBuffer()
+}
+
+async function pixel(buffer: Buffer, x: number, y: number): Promise<number[]> {
+  const { data, info } = await sharp(buffer).raw().toBuffer({ resolveWithObject: true })
+  const i = (y * info.width + x) * info.channels
+  return [...data.subarray(i, i + 3)]
+}
+
+describe('product shots', () => {
+  test('a transparent cut-out becomes a 4:5 white tile with even margins', async () => {
+    const input = await productShot({
+      width: 1000,
+      height: 1000,
+      watch: { left: 300, top: 100, width: 300, height: 800 },
+      background: { r: 0, g: 0, b: 0, alpha: 0 }
+    })
+    const { buffer, background } = await productPlate(input)
+    const meta = await sharp(buffer).metadata()
+
+    expect(background).toEqual({ r: 255, g: 255, b: 255 })
+    expect(meta.hasAlpha).toBe(false)
+    // 800 px tall watch + 8% (64 px) margins → 928 tall, 742 wide at 4:5.
+    expect(meta.height).toBe(928)
+    expect(meta.width).toBe(742)
+    expect(await pixel(buffer, 0, 0)).toEqual([255, 255, 255])
+    // The watch is centred: equal white on both sides.
+    expect(await pixel(buffer, 370, 64)).toEqual([30, 30, 35])
+    expect(await pixel(buffer, 370, 63)).toEqual([255, 255, 255])
+  })
+
+  test('a plain background keeps its own colour', async () => {
+    const input = await productShot({
+      width: 1200,
+      height: 1200,
+      watch: { left: 400, top: 200, width: 400, height: 800 },
+      background: { r: 242, g: 241, b: 238, alpha: 1 }
+    })
+    const { buffer, background } = await productPlate(input)
+    expect(background).toEqual({ r: 242, g: 241, b: 238 })
+    expect(await pixel(buffer, 0, 0)).toEqual([242, 241, 238])
+  })
+
+  test('a strap cut off by the frame stays cut at the tile edge', async () => {
+    const input = await productShot({
+      width: 1000,
+      height: 1000,
+      watch: { left: 350, top: 0, width: 300, height: 1000 },
+      background: { r: 255, g: 255, b: 255, alpha: 1 }
+    })
+    const { buffer } = await productPlate(input)
+    const meta = await sharp(buffer).metadata()
+    expect(meta.height).toBe(1000)
+    expect(meta.width).toBe(800)
+    expect(await pixel(buffer, 400, 0)).toEqual([30, 30, 35])
+    expect(await pixel(buffer, 400, 999)).toEqual([30, 30, 35])
+  })
+
+  test('processing records the tile colour and marks the entry as a product shot', async () => {
+    const input = await productShot({
+      width: 1000,
+      height: 1000,
+      watch: { left: 300, top: 100, width: 300, height: 800 },
+      background: { r: 0, g: 0, b: 0, alpha: 0 }
+    })
+    const outDir = await mkdtemp(join(tmpdir(), 'watch-photos-test-'))
+    dirs.push(outDir)
+    const product = await processPhoto(input, { slug: 'test-watch', id: 'product', outDir, product: true })
+    const plain = await processPhoto(input, { slug: 'test-watch', id: 'product', outDir })
+
+    expect(product.entry.product).toBe(true)
+    expect(product.entry.color).toBe('#ffffff')
+    expect(product.entry.w / product.entry.h).toBeCloseTo(0.8, 2)
+    expect(plain.entry.product).toBeUndefined()
+    // Different processing of the same original must not reuse its URLs.
+    expect(product.entry.v).not.toBe(plain.entry.v)
+
+    const manifest: PhotoManifest = { 'test-watch': { product: product.entry } }
+    expect(photoSources(manifest, 'https://media.example', 'test-watch', 'product')!.product).toBe(true)
   })
 })
