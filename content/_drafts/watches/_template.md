@@ -12,7 +12,7 @@ reference: REF-123
 nickname: Optional nickname
 status: owned            # owned | sold | admired (admired: listed at /watches/admired)
 acquired: 2024           # year only; leave out for admired watches
-link: https://brand.example/watch   # the brand's page, never a shop listing
+link: https://brand.example/watch   # the maker's own page (its shop page is fine), never a retailer or marketplace
 movement:
   type: automatic        # automatic | manual | quartz | spring-drive | solar
   caliber: Cal. 0000

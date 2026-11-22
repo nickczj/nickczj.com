@@ -25,6 +25,45 @@
       "product": true
     }
   },
+  "horloscaphe-nc-003-fluide": {
+    "product": {
+      "v": "ed2e8d1a4e",
+      "w": 1366,
+      "h": 1707,
+      "widths": [
+        800,
+        1366
+      ],
+      "color": "#181818"
+    }
+  },
+  "kiwame-tokyo-mune-usuki": {
+    "product": {
+      "v": "715610e07a",
+      "w": 915,
+      "h": 1144,
+      "widths": [
+        800,
+        915
+      ],
+      "color": "#000000",
+      "product": true
+    }
+  },
+  "kuoe-old-smith-90-002": {
+    "product": {
+      "v": "7011fe9415",
+      "w": 1648,
+      "h": 2060,
+      "widths": [
+        800,
+        1600,
+        1648
+      ],
+      "color": "#ffffff",
+      "product": true
+    }
+  },
   "longines-record": {
     "caseback": {
       "v": "1b8480a72d",
@@ -117,6 +156,19 @@
         2400
       ],
       "color": "#582818"
+    }
+  },
+  "zelos-visionary-v1": {
+    "product": {
+      "v": "b2249428b5",
+      "w": 859,
+      "h": 1074,
+      "widths": [
+        800,
+        859
+      ],
+      "color": "#010101",
+      "product": true
     }
   }
 }

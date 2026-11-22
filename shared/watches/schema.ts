@@ -81,7 +81,8 @@ export const watchSchema = z.object({
   crystal: z.string().optional(),
   dial: z.string().optional(),
   strap: z.string().optional(),
-  // The brand's page for the reference. Not a shop listing: those carry prices.
+  // The maker's own page for the reference, which for small makers that sell
+  // direct is their shop page. Not a retailer or marketplace listing.
   link: z.string().url().startsWith('https://').optional(),
   photos: z.array(photo).default([]),
   accuracy: z.array(accuracyReading).default([]),
