@@ -21,7 +21,14 @@ case:
 water_resistance_m: 50
 crystal: sapphire
 dial: beige, red and blue hands, gilded star
-strap: black leather or military green NATO
+strap: brown croc-grain leather, pin buckle
+photos:
+  - id: dial
+    alt: Sea-Gull 1963 chronograph with a cream dial, red star, blue hands and a red seconds hand, on a brown leather strap
+  - id: strap
+    alt: The Sea-Gull 1963 laid flat on a wooden table on its brown croc-grain leather strap
+  - id: caseback
+    alt: Sapphire display back of the Sea-Gull 1963, showing the hand-wound ST1901 column-wheel chronograph movement
 tags: [chronograph, military, pilot]
 ---
 

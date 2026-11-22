@@ -23,6 +23,11 @@ water_resistance_m: 30
 crystal: sapphire, anti-reflective underside
 dial: silver sunray, applied indexes, pink hands
 strap: steel and rose gold cap bracelet, folding clasp
+photos:
+  - id: dial
+    alt: Longines Record with a silver sunray dial, rose gold bezel and two-tone bracelet, lying on a wooden table
+  - id: caseback
+    alt: Sapphire display back of the Longines Record, showing the L888.4 movement and its engraved rotor
 tags: [dress, chronometer]
 ---
 
