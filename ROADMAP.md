@@ -66,6 +66,17 @@
 - [~] Homelab project page: hardware/services still Pi-5-centric; refresh for the NAS and HA Yellow
 - [~] Singapore SG yields section: static May 2026 snapshot, needs Vesto live rate wiring
 
+## Milestone: Watches (in progress)
+
+- [x] `watches` content collection with an allowlist schema (`shared/watches/schema.ts`)
+- [x] `/watches` index (stats, owned / wishlist / previously owned) and `/watches/<slug>` detail pages
+- [x] Photo pipeline: EXIF/GPS stripping, AVIF + JPEG variants, hashed names (`bun run watches:photos`)
+- [x] Leak guard test: undeclared frontmatter keys, amounts, and serials fail `bun run check`
+- [x] Accuracy chart from timegrapher readings
+- [x] Create R2 bucket `nickczj-media` (APAC location hint) and custom domain `media.nickczj.com`
+- [~] Collection: Longines Record and Sea-Gull 1963 published; photos and remaining watches to add
+- [ ] On-wrist widget: NFC tag → Home Assistant → `/api/watches/wearing` → D1 → homepage
+
 ## Milestone: Version Archive (planned)
 
 - [ ] Design archive page at `/archive` on nickczj.com

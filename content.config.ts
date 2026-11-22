@@ -1,4 +1,5 @@
 import { defineCollection, defineContentConfig, z } from '@nuxt/content'
+import { watchSchema } from './shared/watches/schema'
 
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 
@@ -47,6 +48,15 @@ export default defineContentConfig({
       indexes: [
         { columns: ['date'] },
         { columns: ['draft'] }
+      ]
+    }),
+    // Public by construction: see shared/watches/schema.ts before adding fields.
+    watches: defineCollection({
+      type: 'page',
+      source: 'watches/*.md',
+      schema: watchSchema,
+      indexes: [
+        { columns: ['status'] }
       ]
     }),
     pages: defineCollection({

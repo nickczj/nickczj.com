@@ -1,5 +1,6 @@
 import os from 'node:os'
 import { execSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 
 function detectBunVersion(): string {
   try {
@@ -24,7 +25,22 @@ export default defineNuxtConfig({
       buildNodeVersion: process.version,
       buildBunVersion: detectBunVersion(),
       buildOsInfo: `${os.platform()} ${os.release()}`,
-      buildCommitHash: detectGitCommit()
+      buildCommitHash: detectGitCommit(),
+      // R2 bucket `nickczj-media` on its custom domain. For local previews of
+      // photos processed into .cache/watch-photos, run dev with
+      // NUXT_PUBLIC_MEDIA_BASE_URL=/_media.
+      mediaBaseUrl: 'https://media.nickczj.com'
+    }
+  },
+  $development: {
+    nitro: {
+      publicAssets: [
+        {
+          baseURL: '/_media',
+          dir: fileURLToPath(new URL('./.cache/watch-photos', import.meta.url)),
+          maxAge: 0
+        }
+      ]
     }
   },
   compatibilityDate: '2026-11-01',
@@ -95,7 +111,7 @@ export default defineNuxtConfig({
     prerender: {
       crawlLinks: true,
       ignore: [/^\/$/, /^\/projects/],
-      routes: ['/blog', '/now', '/uses', '/colophon']
+      routes: ['/blog', '/now', '/uses', '/colophon', '/watches']
     }
   }
 })

@@ -13,6 +13,7 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "homelab:push": "bun run scripts/push-homelab-status.ts",
+    "watches:photos": "bun run scripts/watch-photos.ts",
     "preview": "nuxt preview",
     "test": "bun test",
     "typecheck": "nuxt typecheck",
@@ -34,8 +35,10 @@
   },
   "devDependencies": {
     "@types/node": "26",
+    "sharp": "0.35.5",
     "typescript": "5.9.3",
     "vue-tsc": "3.3.14",
-    "wrangler": "4.160.1"
+    "wrangler": "4.160.1",
+    "zod": "3.25.76"
   }
 }

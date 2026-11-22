@@ -20,6 +20,7 @@ onMounted(() => {
           <NuxtLink to="/projects">Projects</NuxtLink>
           <NuxtLink to="/now">Now</NuxtLink>
           <NuxtLink to="/uses">Uses</NuxtLink>
+          <NuxtLink to="/watches">Watches</NuxtLink>
           <a href="https://cv.nickczj.com">CV</a>
         </nav>
         <ThemeToggle />

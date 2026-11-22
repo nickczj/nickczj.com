@@ -43,10 +43,35 @@ Content lives in `content/` as markdown files managed by Nuxt Content v3:
 - `content/now/*.md` — monthly focus entries (title, description, date, summary)
 - `content/currently/*.md` — currently-reading entries (book, author, chapter, link)
 - `content/pages/*.md` — standalone pages (uses, colophon)
+- `content/watches/*.md` — the watch collection at `/watches` (see [Watches](#watches); everything in it is public)
 
 Projects are managed outside Nuxt Content via `app/data/projects.ts` with detail pages under `app/pages/projects/` and interactive card visuals in `app/components/projects/cards/`.
 
 The homepage queries blog, now, and currently collections, plus live API data from homelab status, GitHub contributions, and Spotify. Unpublished posts live in `content/_drafts/` and are not part of the indexed blog collection.
+
+## Watches
+
+`/watches` lists the watch collection; `/watches/<slug>` shows photos, specs, an optional accuracy chart, and the write-up.
+
+- **Data:** one Markdown file per watch in `content/watches/<slug>.md`. Start from `content/_drafts/watches/_template.md`. The schema lives in `shared/watches/schema.ts`.
+- **Public by construction:** this repo is public, and Nuxt Content serves every collection as a SQL dump (`/dump.watches.sql`, `/__nuxt_content/watches/sql_dump.txt`), including frontmatter keys the schema does not declare. Never add prices, serial or case numbers, receipts, insurance values, or where a watch is kept. `tests/watches-content.test.ts` (part of `bun run check`) rejects undeclared keys and obvious amounts or serials. Unpublished entries go in `content/_drafts/watches/`, which is outside the collection.
+- **Photos:** originals stay in Immich. Export the shots for one watch and run:
+
+  ```bash
+  bun run watches:photos <slug> ~/Downloads/hero.jpg ~/Downloads/wrist.heic   # process only
+  bun run watches:photos <slug> ~/Downloads/hero.jpg --upload                 # process and upload
+  ```
+
+  The photo id is the file name (`hero.jpg` → `hero`). The script applies EXIF orientation, converts to sRGB, strips all metadata (EXIF, GPS, XMP, IPTC, ICC) and checks the output, then writes AVIF and JPEG variants at 800/1600/2400 px to `.cache/watch-photos/`. It records dimensions and a placeholder colour in `app/data/watch-photos.json` (commit this file). With `--upload` it puts the variants in the R2 bucket `nickczj-media` with immutable caching; file names carry a content hash. HEIC is converted with macOS `sips` first.
+- **Serving:** the pages load photos from `runtimeConfig.public.mediaBaseUrl` (`https://media.nickczj.com`, the bucket's custom domain). To preview locally processed photos, run `NUXT_PUBLIC_MEDIA_BASE_URL=/_media bun run dev`; dev serves `.cache/watch-photos` at `/_media`.
+- **Accuracy:** add timegrapher or app readings under `accuracy` (`date`, `seconds_per_day`, optional `note`). Mechanical watches show the COSC −4/+6 s/day band for reference.
+
+One-time setup for the bucket (account-level Cloudflare changes; the custom domain adds a DNS record):
+
+```bash
+bunx wrangler r2 bucket create nickczj-media
+bunx wrangler r2 bucket domain add nickczj-media --domain media.nickczj.com --zone-id <nickczj.com zone id> --min-tls 1.2
+```
 
 ## Homelab Status
 
