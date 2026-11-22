@@ -64,42 +64,6 @@
       "product": true
     }
   },
-  "longines-record": {
-    "caseback": {
-      "v": "1b8480a72d",
-      "w": 2400,
-      "h": 3000,
-      "widths": [
-        800,
-        1600,
-        2400
-      ],
-      "color": "#381808"
-    },
-    "dial": {
-      "v": "dd5b9c8c77",
-      "w": 2400,
-      "h": 3000,
-      "widths": [
-        800,
-        1600,
-        2400
-      ],
-      "color": "#581808"
-    },
-    "product": {
-      "v": "cf0bf3a724",
-      "w": 1659,
-      "h": 2074,
-      "widths": [
-        800,
-        1600,
-        1659
-      ],
-      "color": "#ffffff",
-      "product": true
-    }
-  },
   "omega-speedmaster-grey-side-of-the-moon": {
     "product": {
       "v": "1230b276d7",

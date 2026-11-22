@@ -334,7 +334,7 @@ async function main(argv: string[]): Promise<void> {
   console.log('\nReference them in the watch frontmatter:\n\nphotos:')
   for (const { id } of processed) {
     console.log(`  - id: ${id}\n    alt: ""`)
-    if (product) console.log(`    credit: ""        # the maker, e.g. Longines\n    source: ""        # https page the image came from`)
+    if (product) console.log(`    credit: ""        # the maker, e.g. Omega\n    source: ""        # https page the image came from`)
   }
   if (product) console.log('\nPut the product shot first so it is the card and hero image.')
 }

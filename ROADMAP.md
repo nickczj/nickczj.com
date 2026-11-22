@@ -76,7 +76,7 @@
 - [x] Leak guard test: undeclared frontmatter keys, amounts, and serials fail `bun run check`
 - [x] Accuracy chart from timegrapher readings
 - [x] Create R2 bucket `nickczj-media` (APAC location hint) and custom domain `media.nickczj.com`
-- [~] Collection: Longines Record, Sea-Gull 1963 and Drop Felix published; remaining watches to add
+- [~] Collection: Sea-Gull 1963 and Drop Felix published; remaining watches to add
 - [ ] On-wrist widget: NFC tag → Home Assistant → `/api/watches/wearing` → D1 → homepage
 
 ## Milestone: Version Archive (planned)
