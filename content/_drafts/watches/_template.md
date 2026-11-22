@@ -10,8 +10,9 @@ brand: Brand
 model: Model
 reference: REF-123
 nickname: Optional nickname
-status: owned            # owned | wishlist | sold
-acquired: 2024           # year only
+status: owned            # owned | sold | admired (admired: listed at /watches/admired)
+acquired: 2024           # year only; leave out for admired watches
+link: https://brand.example/watch   # the brand's page, never a shop listing
 movement:
   type: automatic        # automatic | manual | quartz | spring-drive | solar
   caliber: Cal. 0000
@@ -45,3 +46,5 @@ tags: [diver]
 ---
 
 Why it's in the collection, how it wears, what's been serviced. Plain Markdown.
+Optional for admired watches: with no body, the watch is a card on
+/watches/admired and its title links to `link`; with a body, it gets a page.

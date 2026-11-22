@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import manifest from '~/data/watch-photos.json'
-import { WATCH_STATUSES } from '#shared/watches/schema'
+import { COLLECTION_STATUSES } from '#shared/watches/schema'
 import { collectionStats, compareWatches, photoSources, statusLabel, type PhotoManifest } from '#shared/watches/format'
 import WatchCard from '~/components/watches/WatchCard.vue'
 
@@ -10,7 +10,7 @@ const { data: watches } = await useAsyncData('watches', () => {
 
 const sections = computed(() => {
   const all = watches.value ?? []
-  return WATCH_STATUSES
+  return COLLECTION_STATUSES
     .map(status => ({
       status,
       title: statusLabel(status),
@@ -20,6 +20,7 @@ const sections = computed(() => {
 })
 
 const stats = computed(() => collectionStats(watches.value ?? []))
+const admiredCount = computed(() => (watches.value ?? []).filter(watch => watch.status === 'admired').length)
 
 const config = useRuntimeConfig()
 const socialImage = computed(() => {
@@ -81,6 +82,11 @@ useSeoMeta({
     <div v-else class="empty-state">
       <p>No watches listed yet.</p>
     </div>
+
+    <p v-if="admiredCount" class="watch-elsewhere">
+      <NuxtLink to="/watches/admired">Watches I admire</NuxtLink>
+      <span>{{ admiredCount }} I don't own but find interesting</span>
+    </p>
   </section>
 </template>
 
@@ -158,6 +164,29 @@ h1 {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.watch-elsewhere {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  margin: 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+}
+
+.watch-elsewhere a {
+  font-weight: 650;
+}
+
+.watch-elsewhere a::after {
+  content: " →";
+}
+
+.watch-elsewhere span {
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
 @media (max-width: 640px) {

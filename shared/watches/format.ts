@@ -85,12 +85,27 @@ export function isMechanical(type: MovementType): boolean {
 
 const STATUS_LABELS: Record<WatchStatus, string> = {
   owned: 'In the collection',
-  wishlist: 'Wishlist',
-  sold: 'Previously owned'
+  sold: 'Previously owned',
+  admired: 'Admired'
 }
 
 export function statusLabel(status: WatchStatus): string {
   return STATUS_LABELS[status]
+}
+
+/**
+ * Whether the Markdown body has any content. Admired watches only get a
+ * detail page when they have a write-up; otherwise the card is the whole entry.
+ */
+export function hasWriteUp(watch: { body?: { value?: unknown[] } | null }): boolean {
+  return (watch.body?.value?.length ?? 0) > 0
+}
+
+type AdmiredSortSource = Pick<WatchInput, 'brand' | 'title'>
+
+/** Admired watches have no acquisition year, so sort them by brand, then title. */
+export function compareAdmired(a: AdmiredSortSource, b: AdmiredSortSource): number {
+  return a.brand.localeCompare(b.brand) || a.title.localeCompare(b.title)
 }
 
 const number = new Intl.NumberFormat('en-SG', { maximumFractionDigits: 1 })
@@ -144,7 +159,7 @@ export function specRows(watch: SpecRowSource): SpecRow[] {
   add('Based on', movement.base)
   add('Beat rate', movement.vph ? formatBeat(movement.vph) : null)
   add('Power reserve', movement.power_reserve_h ? `${number.format(movement.power_reserve_h)} hours` : null)
-  add('Jewels', movement.jewels !== undefined ? String(movement.jewels) : null)
+  add('Jewels', movement.jewels != null ? String(movement.jewels) : null)
   add('Certification', movement.certification)
 
   const features = [
@@ -165,7 +180,7 @@ export function specRows(watch: SpecRowSource): SpecRow[] {
   add('Case material', c.material ? capitalise(c.material) : null)
   add('Case back', c.back ? capitalise(c.back) : null)
   add('Lug width', c.lug_width_mm ? `${number.format(c.lug_width_mm)} mm` : null)
-  add('Water resistance', watch.water_resistance_m !== undefined ? `${number.format(watch.water_resistance_m)} m` : null)
+  add('Water resistance', watch.water_resistance_m != null ? `${number.format(watch.water_resistance_m)} m` : null)
   add('Crystal', watch.crystal ? capitalise(watch.crystal) : null)
   add('Dial', watch.dial ? capitalise(watch.dial) : null)
   add('Strap', watch.strap ? capitalise(watch.strap) : null)

@@ -53,6 +53,8 @@ The homepage queries blog, now, and currently collections, plus live API data fr
 
 `/watches` lists the watch collection; `/watches/<slug>` shows photos, specs, an optional accuracy chart, and the write-up.
 
+`/watches/admired` lists watches admired but not owned (`status: admired`). They live in the same folder and schema, so buying one is a one-line status change and its URL stays the same. An admired watch only needs the required fields plus a `link` to the brand's page; its card title links there. Add a Markdown body and it gets a `/watches/<slug>` page like the rest. `admired` is a reserved slug. Use your own photos or none: brand press photos are copyrighted.
+
 - **Data:** one Markdown file per watch in `content/watches/<slug>.md`. Start from `content/_drafts/watches/_template.md`. The schema lives in `shared/watches/schema.ts`.
 - **Public by construction:** this repo is public, and Nuxt Content serves every collection as a SQL dump (`/dump.watches.sql`, `/__nuxt_content/watches/sql_dump.txt`), including frontmatter keys the schema does not declare. Never add prices, serial or case numbers, receipts, insurance values, or where a watch is kept. `tests/watches-content.test.ts` (part of `bun run check`) rejects undeclared keys and obvious amounts or serials. Unpublished entries go in `content/_drafts/watches/`, which is outside the collection.
 - **Photos:** originals stay in Immich. Export the shots for one watch and run:

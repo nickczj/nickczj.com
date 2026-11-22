@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { SLUG_PATTERN, watchFrontmatterSchema } from '../shared/watches/schema'
-import type { PhotoManifest } from '../shared/watches/format'
+import { RESERVED_SLUGS, SLUG_PATTERN, watchFrontmatterSchema } from '../shared/watches/schema'
+import { compareAdmired, hasWriteUp, specRows, type PhotoManifest } from '../shared/watches/format'
 
 // The repo is public and Nuxt Content serves every collection as a SQL dump,
 // so anything written in content/watches/ is published. This suite is the
@@ -68,6 +68,10 @@ describe('watch content', () => {
           expect(slug).toMatch(SLUG_PATTERN)
         })
 
+        test('file name does not shadow a /watches/ page', () => {
+          expect(RESERVED_SLUGS as readonly string[]).not.toContain(slug)
+        })
+
         test('every listed photo has been processed', () => {
           const parsed = watchFrontmatterSchema.safeParse(data)
           if (!parsed.success) return
@@ -77,10 +81,69 @@ describe('watch content', () => {
           }
         })
 
-        test('has a body', () => {
-          expect(body.trim().length).toBeGreaterThan(0)
-        })
+        // Admired watches can be a card only; anything in the collection needs a write-up.
+        const status = (data as { status?: string } | null)?.status ?? 'owned'
+        if (status !== 'admired') {
+          test('has a body', () => {
+            expect(body.trim().length).toBeGreaterThan(0)
+          })
+        }
       }
     })
   }
+})
+
+describe('watch schema', () => {
+  const minimal = {
+    title: 'Example',
+    description: 'An example watch.',
+    brand: 'Brand',
+    status: 'admired',
+    movement: { type: 'manual' }
+  }
+
+  test('accepts an admired watch with only the required fields', () => {
+    expect(watchFrontmatterSchema.safeParse(minimal).success).toBe(true)
+  })
+
+  test('rejects the old wishlist status', () => {
+    expect(watchFrontmatterSchema.safeParse({ ...minimal, status: 'wishlist' }).success).toBe(false)
+  })
+
+  test('links must be https URLs', () => {
+    expect(watchFrontmatterSchema.safeParse({ ...minimal, link: 'https://example.com/watch' }).success).toBe(true)
+    expect(watchFrontmatterSchema.safeParse({ ...minimal, link: 'http://example.com/watch' }).success).toBe(false)
+    expect(watchFrontmatterSchema.safeParse({ ...minimal, link: 'example.com/watch' }).success).toBe(false)
+  })
+
+  test('a write-up is a non-empty Markdown body', () => {
+    expect(hasWriteUp({ body: { value: [['p', {}, 'text']] } })).toBe(true)
+    expect(hasWriteUp({ body: { value: [] } })).toBe(false)
+    expect(hasWriteUp({})).toBe(false)
+  })
+
+  test('spec rows skip fields the content database returns as null', () => {
+    // Nuxt Content stores a missing top-level number as SQL NULL, not undefined.
+    const rows = specRows({
+      movement: { type: 'manual', caliber: '3861' },
+      water_resistance_m: null as unknown as undefined
+    })
+    expect(rows.map(row => row.label)).toEqual(['Movement'])
+    expect(specRows({ movement: { type: 'manual' }, water_resistance_m: 0 }).find(row => row.label === 'Water resistance')?.value).toBe('0 m')
+  })
+
+  test('admired watches sort by brand, then title', () => {
+    const sorted = [
+      { brand: 'Seiko', title: 'Alpinist' },
+      { brand: 'Grand Seiko', title: 'Snowflake' },
+      { brand: 'Seiko', title: 'Presage' },
+      { brand: 'Grand Seiko', title: 'Birch' }
+    ].sort(compareAdmired)
+    expect(sorted.map(watch => `${watch.brand} ${watch.title}`)).toEqual([
+      'Grand Seiko Birch',
+      'Grand Seiko Snowflake',
+      'Seiko Alpinist',
+      'Seiko Presage'
+    ])
+  })
 })

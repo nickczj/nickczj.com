@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import manifest from '~/data/watch-photos.json'
-import { formatRate, isMechanical, photoSources, specRows, type PhotoManifest } from '#shared/watches/format'
+import { formatRate, hasWriteUp, isMechanical, photoSources, specRows, type PhotoManifest } from '#shared/watches/format'
 import WatchPhoto from '~/components/watches/WatchPhoto.vue'
 import AccuracyChart from '~/components/watches/AccuracyChart.vue'
 
@@ -12,12 +12,15 @@ const { data: watch } = await useAsyncData(`watch-${slug}`, () => {
   return queryCollection('watches').path(watchPath).first()
 })
 
-if (!watch.value) {
+// Admired watches without a write-up are listed on /watches/admired only.
+if (!watch.value || (watch.value.status === 'admired' && !hasWriteUp(watch.value))) {
   throw createError({
     statusCode: 404,
     statusMessage: 'Watch not found'
   })
 }
+
+const admired = computed(() => watch.value?.status === 'admired')
 
 const photos = computed(() => watch.value?.photos ?? [])
 const hero = computed(() => photos.value[0])
@@ -33,7 +36,7 @@ const meta = computed(() => {
   if (watch.value.nickname) parts.push(`“${watch.value.nickname}”`)
   if (watch.value.status === 'owned' && watch.value.acquired) parts.push(`Since ${watch.value.acquired}`)
   if (watch.value.status === 'sold') parts.push(watch.value.acquired ? `Owned from ${watch.value.acquired}` : 'Previously owned')
-  if (watch.value.status === 'wishlist') parts.push('Wishlist')
+  if (watch.value.status === 'admired') parts.push('Admired, not owned')
   return parts
 })
 
@@ -57,17 +60,21 @@ useSeoMeta({
 
 <template>
   <article v-if="watch" class="page watch">
-    <NuxtLink class="back-link" to="/watches">All watches</NuxtLink>
+    <NuxtLink v-if="admired" class="back-link" to="/watches/admired">All admired watches</NuxtLink>
+    <NuxtLink v-else class="back-link" to="/watches">All watches</NuxtLink>
 
     <header class="page-header">
       <p class="eyebrow">{{ watch.brand }}</p>
       <h1>{{ watch.title }}</h1>
       <p class="lede">{{ watch.description }}</p>
-      <div v-if="meta.length || watch.tags?.length" class="entry-meta">
+      <div v-if="meta.length || watch.tags?.length || watch.link" class="entry-meta">
         <span v-for="part in meta" :key="part">{{ part }}</span>
         <span v-if="watch.tags?.length" class="tag-list" aria-label="Tags">
           <span v-for="tag in watch.tags" :key="tag" class="tag">{{ tag }}</span>
         </span>
+        <a v-if="watch.link" :href="watch.link" target="_blank" rel="noopener">
+          Official page<span aria-hidden="true"> ↗</span>
+        </a>
       </div>
     </header>
 

@@ -10,9 +10,16 @@ import { z } from 'zod'
 // is kept. `tests/watches-content.test.ts` fails the build on unknown keys.
 
 export const MOVEMENT_TYPES = ['automatic', 'manual', 'quartz', 'spring-drive', 'solar'] as const
-export const WATCH_STATUSES = ['owned', 'wishlist', 'sold'] as const
+// `owned` and `sold` make up the collection at /watches. `admired` is for
+// watches admired but not owned; they are listed at /watches/admired.
+// Buying one is a one-line change to `owned`, and the URL stays the same.
+export const WATCH_STATUSES = ['owned', 'sold', 'admired'] as const
+export const COLLECTION_STATUSES = ['owned', 'sold'] as const
 
 export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+
+/** Static routes under /watches/ that a watch file name would collide with. */
+export const RESERVED_SLUGS = ['admired'] as const
 
 const slug = z.string().regex(SLUG_PATTERN)
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -69,6 +76,8 @@ export const watchSchema = z.object({
   crystal: z.string().optional(),
   dial: z.string().optional(),
   strap: z.string().optional(),
+  // The brand's page for the reference. Not a shop listing: those carry prices.
+  link: z.string().url().startsWith('https://').optional(),
   photos: z.array(photo).default([]),
   accuracy: z.array(accuracyReading).default([]),
   tags: z.array(z.string()).default([])
