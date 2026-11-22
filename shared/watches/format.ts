@@ -112,7 +112,8 @@ export function compareAdmired(a: AdmiredSortSource, b: AdmiredSortSource): numb
   return a.brand.localeCompare(b.brand) || a.title.localeCompare(b.title)
 }
 
-const number = new Intl.NumberFormat('en-SG', { maximumFractionDigits: 1 })
+// Two decimals: makers quote sizes like 44.25 mm and 9.95 mm.
+const number = new Intl.NumberFormat('en-SG', { maximumFractionDigits: 2 })
 
 export function formatNumber(value: number): string {
   return number.format(value)

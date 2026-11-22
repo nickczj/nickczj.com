@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { RESERVED_SLUGS, SLUG_PATTERN, watchFrontmatterSchema } from '../shared/watches/schema'
-import { compareAdmired, hasWriteUp, specRows, type PhotoManifest } from '../shared/watches/format'
+import { compareAdmired, hasWriteUp, specLine, specRows, type PhotoManifest } from '../shared/watches/format'
 
 // The repo is public and Nuxt Content serves every collection as a SQL dump,
 // so anything written in content/watches/ is published. This suite is the
@@ -141,6 +141,12 @@ describe('watch schema', () => {
     })
     expect(rows.map(row => row.label)).toEqual(['Movement'])
     expect(specRows({ movement: { type: 'manual' }, water_resistance_m: 0 }).find(row => row.label === 'Water resistance')?.value).toBe('0 m')
+  })
+
+  test('sizes keep the maker\'s precision', () => {
+    expect(specLine({ movement: { type: 'automatic', caliber: '9300' }, case: { diameter_mm: 44.25 } })).toBe('44.25 mm · 9300 · Automatic')
+    const rows = specRows({ movement: { type: 'manual' }, case: { diameter_mm: 38.6, thickness_mm: 9.95 } })
+    expect(rows.find(row => row.label === 'Case')?.value).toBe('38.6 mm wide, 9.95 mm thick')
   })
 
   test('admired watches sort by brand, then title', () => {

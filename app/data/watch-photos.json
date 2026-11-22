@@ -1,4 +1,30 @@
 {
+  "drop-felix": {
+    "product": {
+      "v": "443dd19a1b",
+      "w": 850,
+      "h": 1062,
+      "widths": [
+        800,
+        850
+      ],
+      "color": "#ffffff",
+      "product": true
+    }
+  },
+  "grand-seiko-slgw007": {
+    "product": {
+      "v": "6e0f0343bd",
+      "w": 882,
+      "h": 1102,
+      "widths": [
+        800,
+        882
+      ],
+      "color": "#ffffff",
+      "product": true
+    }
+  },
   "longines-record": {
     "caseback": {
       "v": "1b8480a72d",
@@ -30,6 +56,18 @@
         800,
         1600,
         1659
+      ],
+      "color": "#ffffff",
+      "product": true
+    }
+  },
+  "omega-speedmaster-grey-side-of-the-moon": {
+    "product": {
+      "v": "1230b276d7",
+      "w": 528,
+      "h": 660,
+      "widths": [
+        528
       ],
       "color": "#ffffff",
       "product": true
