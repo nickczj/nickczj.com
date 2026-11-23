@@ -122,6 +122,19 @@
       "color": "#582818"
     }
   },
+  "seiko-srpl93": {
+    "product": {
+      "v": "da026529d6",
+      "w": 949,
+      "h": 1186,
+      "widths": [
+        800,
+        949
+      ],
+      "color": "#ffffff",
+      "product": true
+    }
+  },
   "zelos-visionary-v1": {
     "product": {
       "v": "b2249428b5",
