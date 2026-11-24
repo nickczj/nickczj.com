@@ -1,6 +1,6 @@
 # Progress Tracker
 
-Last updated: 2026-11-12
+Last updated: 2026-11-24
 
 ## Legend
 
@@ -38,6 +38,7 @@ Last updated: 2026-11-12
 - [x] `/uses` — hardware/software setup page (filled November 2026; redesign planned)
 - [x] `/colophon` — site stack documentation, GitHub source link, current font/content details
 - [x] `/projects` — standalone route with index + 4 detail pages (homelab, fire-finance-math, esp32-heltec-wireless-paper, esp32-eink-spectra6)
+- [x] `/watches` — collection index, detail pages, and `/watches/admired`
 - [ ] `/archive` — version showcase page for past iterations of nickczj.com
 
 ## Content
@@ -48,6 +49,7 @@ Last updated: 2026-11-12
 - [x] Pages collection: colophon and uses current
 - [~] Next blog posts need writing (Vesto caching, GoReleaser casks)
 - [x] `/projects` content — 4 published projects with screenshots and interactive topology cards
+- [x] Watch collection — 2 owned and 7 admired entries, allowlist schema, EXIF-stripped photo pipeline, and `/watches/admired`
 - [~] Homelab project page hardware/services section still describes the Pi 5 as the main host; needs a NAS + HA Yellow refresh
 
 ## Homelab Status Integration
@@ -67,7 +69,7 @@ Last updated: 2026-11-12
 - [x] Auth token generated and stored in `.secrets`
 - [x] D1 migrations applied to Cloudflare
 - [x] Pusher deployed to NAS (systemd timer, every 2 min)
-- [x] Service list: traefik, immich_server, jellyfin, suwayomi, paperless, beszel
+- [x] Service list: NAS — traefik, immich_server, jellyfin, suwayomi, beszel; pi5 — bento-pdf, shlink (retired services removed 2026-11-24)
 - [x] D1 read query fixed to only return services from latest push
 - [x] End-to-end verified: homelab → ingest → D1 → API → homepage
 - [x] All three nodes reporting (`nas`, `pi5`, `ha-yellow`) with Tailscale state
