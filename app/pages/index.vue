@@ -100,7 +100,6 @@ const DEFAULT_PRIMARY_KPIS: HomelabKpi[] = [
 
 const DEFAULT_FLEET_SERVICES = [
   { nodeId: 'nas', name: 'immich_server' },
-  { nodeId: 'nas', name: 'paperless' },
   { nodeId: 'nas', name: 'tailscale' },
   { nodeId: 'pi5', name: 'pihole' },
   { nodeId: 'pi5', name: 'tailscale' },

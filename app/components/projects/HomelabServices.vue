@@ -25,7 +25,6 @@ const DEFAULT_SERVICES = [
   { nodeId: 'nas', nodeName: 'nas', name: 'immich_server' },
   { nodeId: 'nas', nodeName: 'nas', name: 'jellyfin' },
   { nodeId: 'nas', nodeName: 'nas', name: 'suwayomi' },
-  { nodeId: 'nas', nodeName: 'nas', name: 'paperless' },
   { nodeId: 'nas', nodeName: 'nas', name: 'beszel' },
   { nodeId: 'nas', nodeName: 'nas', name: 'tailscale' },
   { nodeId: 'pi5', nodeName: 'pi5', name: 'tailscale' },

@@ -197,7 +197,6 @@ const DEFAULT_SERVICES = [
   'immich_server',
   'jellyfin',
   'suwayomi',
-  'paperless',
   'beszel'
 ]
 
