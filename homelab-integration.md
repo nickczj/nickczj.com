@@ -89,7 +89,7 @@ export HOMELAB_STATUS_ENDPOINT="https://nickczj.com/api/_status/ingest"
 export HOMELAB_STATUS_TOKEN="<same token>"
 export HOMELAB_NODE_ID="nas"          # or "pi5"
 export HOMELAB_NODE_NAME="UGREEN NAS" # optional display name
-export HOMELAB_DOCKER_SERVICES="traefik,immich_server,jellyfin,paperless,suwayomi,beszel"
+export HOMELAB_DOCKER_SERVICES="traefik,immich_server,jellyfin,suwayomi,beszel"
 
 Dry-run first:
 
