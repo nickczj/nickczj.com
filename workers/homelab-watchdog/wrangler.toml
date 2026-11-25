@@ -1,0 +1,25 @@
+# Home internet watchdog: a scheduled Worker, separate from the Pages project.
+# Pages Functions cannot run on a schedule. Deploy from this folder with
+# `bunx wrangler deploy`. See README.md here.
+name = "homelab-watchdog"
+main = "src/index.ts"
+compatibility_date = "2026-11-01"
+
+# Scheduled only: no public URL.
+workers_dev = false
+preview_urls = false
+
+[triggers]
+crons = ["*/2 * * * *"]
+
+[[d1_databases]]
+binding = "HOMELAB_DB"
+database_name = "nickczj-homelab-status"
+database_id = "8c2255cc-eb0c-4aec-934d-712164282828"
+migrations_dir = "../../migrations"
+
+[observability]
+enabled = true
+
+# Secrets (set with `bunx wrangler secret put <NAME>`, never in this file):
+#   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
