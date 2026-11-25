@@ -142,11 +142,13 @@
   },
   "omega-speedmaster-grey-side-of-the-moon": {
     "product": {
-      "v": "1230b276d7",
-      "w": 528,
-      "h": 660,
+      "v": "992308b04f",
+      "w": 1851,
+      "h": 2314,
       "widths": [
-        528
+        800,
+        1600,
+        1851
       ],
       "color": "#ffffff",
       "product": true
