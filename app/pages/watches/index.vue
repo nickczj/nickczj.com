@@ -3,6 +3,7 @@ import manifest from '~/data/watch-photos.json'
 import { COLLECTION_STATUSES } from '#shared/watches/schema'
 import { collectionStats, compareWatches, photoSources, statusLabel, type PhotoManifest } from '#shared/watches/format'
 import WatchCard from '~/components/watches/WatchCard.vue'
+import WatchSection from '~/components/watches/WatchSection.vue'
 
 const { data: watches } = await useAsyncData('watches', () => {
   return queryCollection('watches').all()
@@ -20,7 +21,8 @@ const sections = computed(() => {
 })
 
 const stats = computed(() => collectionStats(watches.value ?? []))
-const admiredCount = computed(() => (watches.value ?? []).filter(watch => watch.status === 'admired').length)
+const admired = computed(() => (watches.value ?? []).filter(watch => watch.status === 'admired'))
+const shortlisted = computed(() => admired.value.filter(watch => watch.shortlist === true).length)
 
 const config = useRuntimeConfig()
 const socialImage = computed(() => {
@@ -63,29 +65,25 @@ useSeoMeta({
     </dl>
 
     <template v-if="sections.length">
-      <section
+      <WatchSection
         v-for="section in sections"
+        :id="`watches-${section.status}`"
         :key="section.status"
-        class="watch-section"
-        :aria-labelledby="`watches-${section.status}`"
+        :title="section.title"
+        :count="section.items.length"
       >
-        <h2 :id="`watches-${section.status}`">
-          {{ section.title }}
-          <span class="watch-section-count">{{ section.items.length }}</span>
-        </h2>
-        <ul class="watch-grid">
-          <WatchCard v-for="watch in section.items" :key="watch.path" :watch="watch" />
-        </ul>
-      </section>
+        <WatchCard v-for="watch in section.items" :key="watch.path" :watch="watch" />
+      </WatchSection>
     </template>
 
     <div v-else class="empty-state">
       <p>No watches listed yet.</p>
     </div>
 
-    <p v-if="admiredCount" class="watch-elsewhere">
+    <p v-if="admired.length" class="watch-elsewhere">
       <NuxtLink to="/watches/admired">Watches I admire</NuxtLink>
-      <span>{{ admiredCount }} I don't own but find interesting</span>
+      <span v-if="shortlisted">{{ admired.length }} I don't own, {{ shortlisted }} on my shortlist</span>
+      <span v-else>{{ admired.length }} I don't own but find interesting</span>
     </p>
   </section>
 </template>
@@ -137,35 +135,6 @@ h1 {
   font-variant-numeric: tabular-nums;
 }
 
-.watch-section {
-  display: grid;
-  gap: 1.1rem;
-}
-
-.watch-section h2 {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  margin: 0;
-  font-size: 1.15rem;
-}
-
-.watch-section-count {
-  color: var(--muted);
-  font-size: 0.85rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.watch-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
-  gap: 1.75rem 1.25rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
 .watch-elsewhere {
   display: flex;
   flex-wrap: wrap;
@@ -187,12 +156,5 @@ h1 {
 .watch-elsewhere span {
   color: var(--muted);
   font-size: 0.9rem;
-}
-
-@media (max-width: 640px) {
-  .watch-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1.25rem 0.85rem;
-  }
 }
 </style>

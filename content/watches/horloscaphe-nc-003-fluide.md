@@ -4,6 +4,7 @@ description: A French dive watch whose case is filled with a dense dielectric fl
 brand: Horloscaphe
 model: NC 003 Fluide
 status: admired
+shortlist: true
 movement:
   type: quartz
   caliber: Ronda 715 Li

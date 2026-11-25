@@ -11,6 +11,7 @@ model: Model
 reference: REF-123
 nickname: Optional nickname
 status: owned            # owned | sold | admired (admired: listed at /watches/admired)
+# shortlist: true        # admired only: listed under Shortlist (plan to buy); delete once owned
 acquired: 2024           # year only; leave out for admired watches
 link: https://brand.example/watch   # the maker's own page (its shop page is fine), never a retailer or marketplace
 movement:

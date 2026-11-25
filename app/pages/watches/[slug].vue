@@ -38,7 +38,7 @@ const meta = computed(() => {
   if (watch.value.nickname) parts.push(`“${watch.value.nickname}”`)
   if (watch.value.status === 'owned' && watch.value.acquired) parts.push(`Since ${watch.value.acquired}`)
   if (watch.value.status === 'sold') parts.push(watch.value.acquired ? `Owned from ${watch.value.acquired}` : 'Previously owned')
-  if (watch.value.status === 'admired') parts.push('Admired, not owned')
+  if (watch.value.status === 'admired') parts.push(watch.value.shortlist ? 'On my shortlist' : 'Admired, not owned')
   return parts
 })
 

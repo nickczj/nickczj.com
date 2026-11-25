@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { RESERVED_SLUGS, SLUG_PATTERN, watchFrontmatterSchema } from '../shared/watches/schema'
-import { compareAdmired, hasWriteUp, specLine, specRows, type PhotoManifest } from '../shared/watches/format'
+import { admiredSections, compareAdmired, hasWriteUp, photoCredits, specLine, specRows, type PhotoManifest } from '../shared/watches/format'
 
 // The repo is public and Nuxt Content serves every collection as a SQL dump,
 // so anything written in content/watches/ is published. This suite is the
@@ -51,6 +51,13 @@ describe('watch content', () => {
         if (!result.success) {
           const issues = result.error.issues.map(issue => `${issue.path.join('.') || '(root)'}: ${issue.message}`)
           throw new Error(`invalid watch frontmatter\n  ${issues.join('\n  ')}`)
+        }
+      })
+
+      test('only admired watches are shortlisted', () => {
+        const fields = (data ?? {}) as { status?: string, shortlist?: boolean }
+        if (fields.shortlist && (fields.status ?? 'owned') !== 'admired') {
+          throw new Error('`shortlist` is for admired watches; delete it once the watch is owned')
         }
       })
 
@@ -162,5 +169,39 @@ describe('watch schema', () => {
       'Seiko Alpinist',
       'Seiko Presage'
     ])
+  })
+
+  test('shortlist is a boolean', () => {
+    expect(watchFrontmatterSchema.safeParse({ ...minimal, shortlist: true }).success).toBe(true)
+    expect(watchFrontmatterSchema.safeParse({ ...minimal, shortlist: 'yes' }).success).toBe(false)
+  })
+
+  test('the shortlist comes first, each section sorted by brand and title', () => {
+    const sections = admiredSections([
+      { brand: 'Seiko', title: 'Alpinist', shortlist: null },
+      { brand: 'Zelos', title: 'Mako', shortlist: true },
+      { brand: 'Grand Seiko', title: 'Snowflake' },
+      { brand: 'Grand Seiko', title: 'Birch', shortlist: true }
+    ])
+    expect(sections.map(section => [section.title, section.items.map(watch => watch.title)])).toEqual([
+      ['Shortlist', ['Birch', 'Mako']],
+      ['Everything else', ['Snowflake', 'Alpinist']]
+    ])
+  })
+
+  test('with nothing shortlisted there is one Admired section', () => {
+    const sections = admiredSections([{ brand: 'Seiko', title: 'Alpinist' }])
+    expect(sections.map(section => section.title)).toEqual(['Admired'])
+    expect(admiredSections([])).toEqual([])
+  })
+
+  test('photo credits come from each first photo, deduplicated and sorted', () => {
+    expect(photoCredits([
+      { photos: [{ credit: 'Seiko' }] },
+      { photos: [{ credit: 'Grand Seiko' }, { credit: 'Someone else' }] },
+      { photos: [{ credit: 'Seiko' }] },
+      { photos: [{}] },
+      { photos: null }
+    ])).toEqual(['Grand Seiko', 'Seiko'])
   })
 })

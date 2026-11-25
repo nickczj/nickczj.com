@@ -1,21 +1,34 @@
 <script setup lang="ts">
-import { compareAdmired } from '#shared/watches/format'
-import AdmiredWatch from '~/components/watches/AdmiredWatch.vue'
+import manifest from '~/data/watch-photos.json'
+import { admiredSections, photoCredits, photoSources, type PhotoManifest } from '#shared/watches/format'
+import WatchCard from '~/components/watches/WatchCard.vue'
+import WatchSection from '~/components/watches/WatchSection.vue'
 
 const { data: watches } = await useAsyncData('watches-admired', () => {
   return queryCollection('watches').where('status', '=', 'admired').all()
 })
 
-const admired = computed(() => [...(watches.value ?? [])].sort(compareAdmired))
+const sections = computed(() => admiredSections(watches.value ?? []))
+const credits = computed(() => photoCredits(watches.value ?? []))
 
-const description = 'Watches I admire but don’t own: designs, movements, and stories I find interesting. Not a shopping list.'
+const config = useRuntimeConfig()
+const socialImage = computed(() => {
+  const lead = sections.value[0]?.items.find(watch => watch.photos?.length)
+  const photo = lead?.photos?.[0]
+  if (!lead || !photo) return undefined
+  const slug = lead.path.split('/').pop() ?? ''
+  return photoSources(manifest as PhotoManifest, config.public.mediaBaseUrl, slug, photo.id)?.social
+})
+
+const description = 'Watches I admire but don’t own. The shortlist is the ones I plan to buy.'
 
 useSeoMeta({
   title: 'Admired watches | nickczj.com',
   description,
   ogTitle: 'Admired watches | nickczj.com',
   ogDescription: description,
-  twitterCard: 'summary'
+  ogImage: () => socialImage.value,
+  twitterCard: () => (socialImage.value ? 'summary_large_image' : 'summary')
 })
 </script>
 
@@ -33,9 +46,21 @@ useSeoMeta({
       <p class="lede">{{ description }}</p>
     </header>
 
-    <ul v-if="admired.length" class="entry-list">
-      <AdmiredWatch v-for="watch in admired" :key="watch.path" :watch="watch" />
-    </ul>
+    <template v-if="sections.length">
+      <WatchSection
+        v-for="section in sections"
+        :id="`admired-${section.key}`"
+        :key="section.key"
+        :title="section.title"
+        :count="section.items.length"
+      >
+        <WatchCard v-for="watch in section.items" :key="watch.path" :watch="watch" />
+      </WatchSection>
+
+      <p v-if="credits.length" class="photo-credits">
+        Product photos: {{ credits.join(', ') }}. Each card links to the maker's page.
+      </p>
+    </template>
 
     <div v-else class="empty-state">
       <p>Nothing listed yet.</p>
@@ -59,5 +84,13 @@ h1 {
   to {
     stroke-dashoffset: 0;
   }
+}
+
+.photo-credits {
+  margin: 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  color: var(--muted);
+  font-size: 0.8rem;
 }
 </style>

@@ -6,6 +6,7 @@ model: 5 Sports Heritage Design Re-creation Limited Edition
 reference: SRPL93
 nickname: Gene Kranz
 status: admired
+shortlist: true
 movement:
   type: automatic
   caliber: 4R36

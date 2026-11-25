@@ -71,12 +71,13 @@
 - [x] `watches` content collection with an allowlist schema (`shared/watches/schema.ts`)
 - [x] `/watches` index (stats, owned / previously owned) and `/watches/<slug>` detail pages
 - [x] `/watches/admired` page for watches admired but not owned (`status: admired`): Grand Seiko SLGW007, Omega Speedmaster Grey Side of the Moon
+- [x] Admired page as a photo grid like `/watches`, with a public Shortlist section (`shortlist: true`)
 - [x] Makers' product shots as the main photos (`--product` tiles, credited); own photos under "My photos"
 - [x] Photo pipeline: EXIF/GPS stripping, AVIF + JPEG variants, hashed names (`bun run watches:photos`)
 - [x] Leak guard test: undeclared frontmatter keys, amounts, and serials fail `bun run check`
 - [x] Accuracy chart from timegrapher readings
 - [x] Create R2 bucket `nickczj-media` (APAC location hint) and custom domain `media.nickczj.com`
-- [~] Collection: 2 owned (Sea-Gull 1963, Drop Felix) and 7 admired entries published; more watches to add
+- [~] Collection: 2 owned (Sea-Gull 1963, Drop Felix) and 13 admired entries published; more watches to add
 - [ ] On-wrist widget: NFC tag → Home Assistant → `/api/watches/wearing` → D1 → homepage
 
 ## Milestone: Version Archive (planned)

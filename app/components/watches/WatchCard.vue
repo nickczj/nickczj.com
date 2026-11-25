@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { WatchesCollectionItem } from '@nuxt/content'
-import { specLine } from '#shared/watches/format'
+import { hasWriteUp, specLine } from '#shared/watches/format'
 import WatchPhoto from '~/components/watches/WatchPhoto.vue'
 
 const props = defineProps<{
@@ -9,11 +9,24 @@ const props = defineProps<{
 
 const slug = computed(() => props.watch.path.split('/').pop() ?? '')
 const hero = computed(() => props.watch.photos?.[0])
+
+// Owned watches and admired ones with a write-up open their own page. Other
+// admired watches are a card only, so they open the maker's page instead.
+const NuxtLink = resolveComponent('NuxtLink')
+const destination = computed(() => {
+  if (props.watch.status !== 'admired' || hasWriteUp(props.watch)) {
+    return { is: NuxtLink, attrs: { to: props.watch.path }, external: false }
+  }
+  if (props.watch.link) {
+    return { is: NuxtLink, attrs: { to: props.watch.link, target: '_blank', rel: 'noopener' }, external: true }
+  }
+  return { is: 'div', attrs: {}, external: false }
+})
 </script>
 
 <template>
   <li class="watch-card">
-    <NuxtLink :to="watch.path" class="watch-card-link">
+    <component :is="destination.is" v-bind="destination.attrs" class="watch-card-link">
       <WatchPhoto
         :slug="slug"
         :id="hero?.id ?? ''"
@@ -23,10 +36,12 @@ const hero = computed(() => props.watch.photos?.[0])
       />
       <span class="watch-card-text">
         <span class="watch-card-brand">{{ watch.brand }}</span>
-        <span class="watch-card-title">{{ watch.title }}</span>
+        <span class="watch-card-title">
+          {{ watch.title }}<span v-if="destination.external" class="external" aria-hidden="true"> ↗</span>
+        </span>
         <span class="watch-card-spec">{{ specLine(watch) }}</span>
       </span>
-    </NuxtLink>
+    </component>
   </li>
 </template>
 

@@ -72,6 +72,10 @@ export const watchSchema = z.object({
   reference: z.string().optional(),
   nickname: z.string().optional(),
   status: z.enum(WATCH_STATUSES).default('owned'),
+  // Admired watches I plan to buy; listed first at /watches/admired. Only valid
+  // with `status: admired` (tests enforce it): after buying one, set
+  // `status: owned` and delete this line.
+  shortlist: z.boolean().optional(),
   // Year only: a day-precise purchase date is more than friends need.
   acquired: z.number().int().min(1900).max(2100).optional(),
   movement,

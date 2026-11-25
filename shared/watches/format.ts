@@ -112,6 +112,35 @@ export function compareAdmired(a: AdmiredSortSource, b: AdmiredSortSource): numb
   return a.brand.localeCompare(b.brand) || a.title.localeCompare(b.title)
 }
 
+export interface AdmiredSection<T> {
+  key: 'shortlist' | 'admired'
+  title: string
+  items: T[]
+}
+
+/**
+ * The shortlist first, then everything else, each sorted by brand and title.
+ * Empty sections are dropped. Nuxt Content stores a missing `shortlist` as null.
+ */
+export function admiredSections<T extends AdmiredSortSource & { shortlist?: boolean | null }>(
+  watches: T[]
+): AdmiredSection<T>[] {
+  const shortlist = watches.filter(watch => watch.shortlist === true).sort(compareAdmired)
+  const rest = watches.filter(watch => watch.shortlist !== true).sort(compareAdmired)
+  return [
+    { key: 'shortlist' as const, title: 'Shortlist', items: shortlist },
+    { key: 'admired' as const, title: shortlist.length ? 'Everything else' : 'Admired', items: rest }
+  ].filter(section => section.items.length)
+}
+
+/** Who took the photos shown on a page: the credits of each watch's first photo, deduplicated and sorted. */
+export function photoCredits(watches: { photos?: { credit?: string | null }[] | null }[]): string[] {
+  const credits = watches
+    .map(watch => watch.photos?.[0]?.credit)
+    .filter((credit): credit is string => Boolean(credit))
+  return [...new Set(credits)].sort((a, b) => a.localeCompare(b))
+}
+
 // Two decimals: makers quote sizes like 44.25 mm and 9.95 mm.
 const number = new Intl.NumberFormat('en-SG', { maximumFractionDigits: 2 })
 
