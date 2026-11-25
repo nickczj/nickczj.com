@@ -12,6 +12,58 @@
       "product": true
     }
   },
+  "echo-neutra-1956-chrono-white": {
+    "product": {
+      "v": "9d16ab7172",
+      "w": 1208,
+      "h": 1510,
+      "widths": [
+        800,
+        1208
+      ],
+      "color": "#ffffff",
+      "product": true
+    }
+  },
+  "grand-seiko-sbgm221": {
+    "product": {
+      "v": "44bb4bc3a4",
+      "w": 882,
+      "h": 1102,
+      "widths": [
+        800,
+        882
+      ],
+      "color": "#ffffff",
+      "product": true
+    }
+  },
+  "grand-seiko-slgb015": {
+    "product": {
+      "v": "32dfa46066",
+      "w": 882,
+      "h": 1102,
+      "widths": [
+        800,
+        882
+      ],
+      "color": "#ffffff",
+      "product": true
+    }
+  },
+  "grand-seiko-slgh029": {
+    "product": {
+      "v": "7c098cd1ca",
+      "w": 882,
+      "h": 1102,
+      "widths": [
+        800,
+        882
+      ],
+      "color": "#ffffff",
+      "product": true
+    }
+  },
   "grand-seiko-slgw007": {
     "product": {
       "v": "6e0f0343bd",
@@ -59,6 +111,30 @@
         800,
         1600,
         1648
+      ],
+      "color": "#ffffff",
+      "product": true
+    }
+  },
+  "moonswatch-1965": {
+    "product": {
+      "v": "364929b28d",
+      "w": 642,
+      "h": 802,
+      "widths": [
+        642
+      ],
+      "color": "#ffffff",
+      "product": true
+    }
+  },
+  "moonswatch-mission-to-the-moon": {
+    "product": {
+      "v": "1133b3bb65",
+      "w": 767,
+      "h": 959,
+      "widths": [
+        767
       ],
       "color": "#ffffff",
       "product": true
