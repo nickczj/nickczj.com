@@ -5,6 +5,7 @@ brand: Omega × Swatch
 model: Bioceramic MoonSwatch
 reference: SO33M106
 status: admired
+shortlist: true
 movement:
   type: quartz
 complications: [chronograph]
