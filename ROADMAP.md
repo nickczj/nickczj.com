@@ -77,7 +77,7 @@
 - [x] Leak guard test: undeclared frontmatter keys, amounts, and serials fail `bun run check`
 - [x] Accuracy chart from timegrapher readings
 - [x] Create R2 bucket `nickczj-media` (APAC location hint) and custom domain `media.nickczj.com`
-- [~] Collection: 2 owned (Sea-Gull 1963, Drop Felix) and 12 admired entries published; more watches to add
+- [~] Collection: 3 owned (Sea-Gull 1963, Drop Felix, MoonSwatch 1965) and 11 admired entries published; more watches to add
 - [ ] On-wrist widget: NFC tag → Home Assistant → `/api/watches/wearing` → D1 → homepage
 
 ## Milestone: Version Archive (planned)
