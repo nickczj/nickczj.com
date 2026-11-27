@@ -1,31 +1,9 @@
-import os from 'node:os'
-import { execSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-
-function detectBunVersion(): string {
-  try {
-    return execSync('bun --version', { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
-  } catch {
-    return ''
-  }
-}
-
-function detectGitCommit(): string {
-  try {
-    return execSync('git rev-parse --short HEAD', { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
-  } catch {
-    return ''
-  }
-}
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   runtimeConfig: {
     public: {
-      buildNodeVersion: process.version,
-      buildBunVersion: detectBunVersion(),
-      buildOsInfo: `${os.platform()} ${os.release()}`,
-      buildCommitHash: detectGitCommit(),
       // R2 bucket `nickczj-media` on its custom domain. For local previews of
       // photos processed into .cache/watch-photos, run dev with
       // NUXT_PUBLIC_MEDIA_BASE_URL=/_media.
@@ -39,9 +17,21 @@ export default defineNuxtConfig({
           baseURL: '/_media',
           dir: fileURLToPath(new URL('./.cache/watch-photos', import.meta.url)),
           maxAge: 0
+        },
+        // Reference images for homepage experiments (gitignored, dev only).
+        {
+          baseURL: '/_refs',
+          dir: fileURLToPath(new URL('./.design-refs', import.meta.url)),
+          maxAge: 0
         }
       ]
     }
+  },
+  // Homepage experiments under app/pages/lab/ are dev-only: production builds
+  // (build, generate, typecheck) never see them. Patterns are relative to the
+  // repo root.
+  $production: {
+    ignore: ['app/pages/lab/**']
   },
   compatibilityDate: '2026-11-01',
   devtools: { enabled: true },

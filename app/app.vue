@@ -1,7 +1,4 @@
 <script setup lang="ts">
-const route = useRoute()
-const isHome = computed(() => route.path === '/')
-
 const { init, listen } = useTheme()
 onMounted(() => {
   init()
@@ -9,34 +6,16 @@ onMounted(() => {
 })
 </script>
 
+<!--
+  The header, nav and footer live in layouts/default.vue. A page that wants a
+  bare canvas (the homepage, lab experiments) opts out with
+  definePageMeta({ layout: false }).
+-->
 <template>
-  <div :class="isHome ? 'home-shell-wrapper' : 'site-shell'">
-    <NuxtRouteAnnouncer />
-    <template v-if="!isHome">
-      <header class="site-header">
-        <NuxtLink to="/" class="site-brand">nickczj.com</NuxtLink>
-        <nav class="site-nav" aria-label="Primary navigation">
-          <NuxtLink to="/blog">Blog</NuxtLink>
-          <NuxtLink to="/projects">Projects</NuxtLink>
-          <NuxtLink to="/now">Now</NuxtLink>
-          <NuxtLink to="/uses">Uses</NuxtLink>
-          <NuxtLink to="/watches">Watches</NuxtLink>
-          <a href="https://cv.nickczj.com">CV</a>
-        </nav>
-        <ThemeToggle />
-      </header>
-
-      <main class="site-main">
-        <NuxtPage />
-      </main>
-
-      <footer class="site-footer">
-        <NuxtLink to="/colophon">Colophon</NuxtLink>
-      </footer>
-    </template>
-
-    <NuxtPage v-else />
-  </div>
+  <NuxtRouteAnnouncer />
+  <NuxtLayout>
+    <NuxtPage />
+  </NuxtLayout>
 </template>
 
 <style>
@@ -180,6 +159,9 @@ a:hover {
 
 .page {
   display: grid;
+  /* minmax(0, 1fr) rather than an auto column: a wide child (a KaTeX formula,
+     a code block) then scrolls inside its own box instead of widening the page. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 2rem;
 }
 

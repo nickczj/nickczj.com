@@ -3,6 +3,7 @@ import '~/assets/projects.css'
 import { getProject } from '~/data/projects'
 import StatusBadge from '~/components/projects/StatusBadge.vue'
 import LatexBlock from '~/components/projects/LatexBlock.vue'
+import { SG_YIELDS, SG_YIELDS_AS_OF } from '~/data/sg-yields'
 
 const project = getProject('fire-finance-math')
 
@@ -87,6 +88,27 @@ useSeoMeta({
         interest rate expectations. SSB offers the option to redeem early without capital loss,
         while T-bills must be held to maturity or sold at market price.
       </p>
+
+      <h3>Rates in {{ SG_YIELDS_AS_OF }}</h3>
+      <table class="specs-table rates-table">
+        <thead>
+          <tr>
+            <th scope="col">Instrument</th>
+            <th scope="col">Rate</th>
+            <th scope="col">Change</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in SG_YIELDS" :key="row.id">
+            <th scope="row">{{ row.label }}</th>
+            <td>{{ row.rate }}</td>
+            <td>{{ row.change }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="rates-note">
+        A static snapshot, not a live feed. Check MAS and the CPF Board for current rates.
+      </p>
     </section>
   </article>
 </template>
@@ -107,5 +129,30 @@ h1 {
   to {
     stroke-dashoffset: 0;
   }
+}
+
+.rates-table th {
+  width: auto;
+}
+
+.rates-table th[scope="row"] {
+  color: var(--prose);
+  font-weight: 500;
+}
+
+.rates-table td {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.rates-table th[scope="col"]:not(:first-child),
+.rates-table td {
+  padding-left: 1rem;
+  text-align: right;
+}
+
+.rates-note {
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 </style>

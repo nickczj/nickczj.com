@@ -12,8 +12,8 @@
 
 - [x] Nuxt 4 + Vue 3 + Bun stack on Cloudflare Pages
 - [x] Nuxt Content v3 file-based collections (blog, now, pages, currently)
-- [x] Custom homepage dashboard with live integration strip
-- [x] Shared site shell with nav and page layout
+- [x] Custom homepage dashboard with live integration strip (moved to `/projects/homelab` in November 2026)
+- [x] Shared site shell with nav and page layout (`app/layouts/default.vue`)
 - [x] Blog index + detail pages (1 published post, 2 outlines in `content/_drafts/`)
 - [x] `/now` collection with monthly focus entries
 - [x] `/uses` page (markdown-backed, filled November 2026; redesign planned)
@@ -33,7 +33,7 @@
 
 ## Milestone: Live Integrations (shipped)
 
-- [x] Homelab status: push-based architecture (NAS → D1 → API → homepage)
+- [x] Homelab status: push-based architecture (NAS → D1 → API → `/projects/homelab`)
 - [x] Homelab D1 schema: metrics + service_status tables, 7-day retention
 - [x] Homelab pusher script deployed on NAS via systemd timer (2-min interval)
 - [x] Homelab end-to-end verified: ingest → D1 read → API cache → homepage polling
@@ -42,9 +42,9 @@
 - [x] GitHub contribution heatmap via GitHub GraphQL API with 5-minute cache
 - [x] Spotify currently-playing via OAuth refresh token flow
 - [x] Weather via Open-Meteo API (Singapore, updated every 5 min)
-- [x] Build-time environment display (Node, Bun, OS, commit hash)
-- [x] Currently-reading widget (`content/currently` collection)
-- [x] Terminal overlay (`` ` `` or Cmd+K) with 8 commands
+- [x] Build-time environment display (Node, Bun, OS, commit hash); removed with the dashboard homepage in November 2026
+- [x] Currently-reading widget (`content/currently` collection), now in the "Right now" block on `/now`
+- [x] Terminal overlay (`` ` `` or Cmd+K) with 8 commands, now on `/projects/homelab`
 
 ## Milestone: Upkeep (shipped)
 
@@ -63,8 +63,17 @@
 - [x] Fill in `/uses` page content (redesign still planned)
 - [x] `/colophon` GitHub source link and current stack/font/content details
 - [~] Publish remaining draft blog posts from `content/_drafts/`
-- [~] Homelab project page: hardware/services still Pi-5-centric; refresh for the NAS and HA Yellow
-- [~] Singapore SG yields section: static May 2026 snapshot, needs Vesto live rate wiring
+- [x] Homelab project page rewritten for the NAS, Pi 5 and HA Yellow, with the live status panel on top
+- [~] SG yields: static May 2026 snapshot on `/projects/fire-finance-math`; needs live rate wiring
+
+## Milestone: Homepage restructure (in progress)
+
+- [x] Site header, nav and footer moved into a Nuxt layout; any page can opt out with `layout: false`
+- [x] Dashboard pieces moved: homelab panel and terminal to `/projects/homelab`, GitHub calendar to `/projects`, reading/Spotify/weather to `/now`, SG yields to `/projects/fire-finance-math`
+- [x] Homelab panel shows the services the pushers report (no hand-kept list); random sparkline and heatmap fallbacks removed
+- [x] Dropped: projects progress, latest posts, about and `/now` cards, header pills
+- [x] Blank homepage placeholder and a dev-only `/lab` for experiments
+- [ ] New homepage, chosen from the `/lab` experiments
 
 ## Milestone: Watches (in progress)
 
@@ -97,7 +106,7 @@
 - [ ] CPF allocation + bonus interest calculator with age tiers and OA cap
 - [ ] SSB vs T-Bill comparator with live rate data
 - [ ] FIRE number calculator with SG cost-of-living defaults
-- [ ] Wire SG yields section on homepage to live Vesto/API data
+- [ ] Wire the SG yields snapshot to live Vesto/API data
 
 ## Milestone: Charm & Extras (future)
 

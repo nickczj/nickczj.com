@@ -36,6 +36,8 @@ useSeoMeta({
         <p class="lede">{{ latest.summary }}</p>
       </header>
 
+      <NowCurrently />
+
       <ContentRenderer class="prose" :value="latest" />
 
       <section aria-labelledby="now-archive">

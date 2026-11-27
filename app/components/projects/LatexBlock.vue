@@ -36,6 +36,13 @@ const html = computed(() => {
   text-align: center;
 }
 
+/* katex.css bleeds display math to the screen edges on phones. This wrapper
+   clips that bleed (the FIRE math card needs the clip), so keep the inner
+   scroller inside it: one scroll box, nothing cut off at either side. */
+.latex-display :deep(.katex-display) {
+  margin-inline: 0;
+}
+
 .latex-display :deep(.katex) {
   font-size: 1.1em;
 }

@@ -47,7 +47,17 @@ Content lives in `content/` as markdown files managed by Nuxt Content v3:
 
 Projects are managed outside Nuxt Content via `app/data/projects.ts` with detail pages under `app/pages/projects/` and interactive card visuals in `app/components/projects/cards/`.
 
-The homepage queries blog, now, and currently collections, plus live API data from homelab status, GitHub contributions, and Spotify. Unpublished posts live in `content/_drafts/` and are not part of the indexed blog collection.
+The homepage is a deliberately bare placeholder for now (see [Lab](#lab)). The live pieces sit where they fit: the homelab status panel and terminal on `/projects/homelab`, the GitHub contribution calendar on `/projects`, and a "Right now" block on `/now` (the `currently` collection, Spotify now-playing, and Singapore weather from Open-Meteo). Their data comes from composables in `app/composables/` (`useHomelabStatus`, `useGitHubContributions`, `useSpotifyNow`, `useSingaporeWeather`, `useCurrentlyReading`), so any page can reuse them. Unpublished posts live in `content/_drafts/` and are not part of the indexed blog collection.
+
+## Lab
+
+Homepage experiments live in `app/pages/lab/` and exist on the dev server only: `nuxt.config.ts` ignores that folder in production builds (`$production.ignore`), so nothing in it reaches `dist/`.
+
+- Run `bun run dev` and open `/lab` for the list of experiments.
+- Add `app/pages/lab/<name>.vue`. Use `definePageMeta({ layout: false })` for a bare canvas, or leave it out to keep the site header.
+- Reference images go in `.design-refs/` (gitignored). Dev serves them at `/_refs/`, for example `/_refs/stars.png`. Copy one into `public/` only if its licence allows publishing it.
+- To try a page on your phone, run `bun run dev --host` and open the Network URL it prints.
+- When an experiment sticks, move it into `app/pages/index.vue`.
 
 ## Watches
 
@@ -78,7 +88,7 @@ bunx wrangler r2 bucket domain add nickczj-media --domain media.nickczj.com --zo
 
 ## Homelab Status
 
-Live system metrics from homelab nodes displayed on the homepage via a push-based architecture:
+Live system metrics from homelab nodes, shown on `/projects/homelab` via a push-based architecture:
 
 ```text
 NAS / Pi 5 (Bun standalone pusher via systemd timer, every 2 min)
@@ -86,14 +96,15 @@ HA Yellow (Rust HAOS local add-on, every 2 min)
   → POST /api/_status/ingest (Bearer token)
     → D1 (node-keyed metrics + service_status tables)
       → GET /api/status (public, 30s cache, fleet response)
-        → Homepage (polls every 30s)
+        → /projects/homelab (polls every 30s)
 ```
 
 - **Pushers:** `scripts/push-homelab-status-standalone.ts` for NAS/Pi; `addons/homelab-status-agent/` for Home Assistant Yellow on HAOS
 - **Tailscale:** reported as a node-scoped service for NAS, Pi 5, and HA Yellow
 - **Ingest endpoint:** `server/api/_status/ingest.post.ts` — validates payload, writes to D1
 - **Read endpoint:** `server/api/status.get.ts` — public, returns latest snapshot + history
-- **Core logic:** `server/utils/homelab-status.ts` — types, validation, D1 read/write, memory fallback
+- **Core logic:** `server/utils/homelab-status.ts` — validation, D1 read/write, memory fallback. The wire types live in `shared/homelab/types.ts` so the app can import them too.
+- **Panel:** `shared/homelab/view.ts` turns a response into what the panel shows (tested in `tests/homelab-view.test.ts`); `useHomelabStatus()` fetches and polls it, and `HomelabStatusPanel` renders it. Services are whatever the pushers report; only the three machines are named in code, so the panel has no service list to keep in sync.
 - **Node identity:** `nas` and `pi5` use env vars; HA Yellow uses add-on options with `node_id: ha-yellow`
 - **D1 schema:** `migrations/0002_structured_homelab_status.sql` + `migrations/0003_fleet_homelab_status.sql` — node-keyed `metrics` and `service_status` tables
 

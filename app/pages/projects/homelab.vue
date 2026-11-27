@@ -2,8 +2,6 @@
 import '~/assets/projects.css'
 import { getProject } from '~/data/projects'
 import StatusBadge from '~/components/projects/StatusBadge.vue'
-import HomelabMetrics from '~/components/projects/HomelabMetrics.vue'
-import HomelabServices from '~/components/projects/HomelabServices.vue'
 
 const project = getProject('homelab')
 
@@ -15,6 +13,9 @@ useSeoMeta({
   title: 'Homelab | nickczj.com',
   description: project.description
 })
+
+const { status, view } = useHomelabStatus({ pollMs: 30_000 })
+const terminalOpen = ref(false)
 </script>
 
 <template>
@@ -35,75 +36,75 @@ useSeoMeta({
         </span>
       </div>
       <p class="lede">{{ project.description }}</p>
-      <div v-if="project.repo || project.live" class="project-links">
-        <a v-if="project.repo" :href="project.repo" target="_blank" rel="noopener">Source</a>
-        <a v-if="project.live" :href="project.live" target="_blank" rel="noopener">Live</a>
-      </div>
     </header>
 
-    <img
-      v-if="project.image"
-      :src="project.image"
-      :alt="project.title"
-      class="project-hero"
-    />
-
-    <HomelabMetrics />
-
-    <HomelabServices />
+    <HomelabStatusPanel :view="view">
+      <template #footer>
+        <span>live from /api/status · refreshes every 30s</span>
+        <button type="button" class="terminal-hint" @click="terminalOpen = true">
+          press <span class="kbd">`</span> for a terminal
+        </button>
+      </template>
+    </HomelabStatusPanel>
 
     <section class="prose">
       <h2>Hardware</h2>
       <table class="specs-table">
         <tbody>
-          <tr><th>Board</th><td>Raspberry Pi 5, 8 GB RAM</td></tr>
-          <tr><th>Storage</th><td>256 GB NVMe SSD (USB 3.0 enclosure)</td></tr>
-          <tr><th>Power</th><td>Official 27W USB-C PSU</td></tr>
-          <tr><th>OS</th><td>Ubuntu Server 24.04 LTS (arm64)</td></tr>
-          <tr><th>Network</th><td>Gigabit Ethernet + Tailscale mesh VPN</td></tr>
+          <tr>
+            <th>UGREEN DXP4800 Plus</th>
+            <td>Four-bay NAS with an Intel N100, running UGOS and Docker. Storage, backups and most services. On a UPS.</td>
+          </tr>
+          <tr>
+            <th>Raspberry Pi 5, 8 GB</th>
+            <td>DietPi. The primary Pi-hole and a few small always-on services.</td>
+          </tr>
+          <tr>
+            <th>Home Assistant Yellow</th>
+            <td>Compute Module 5 with an SSD, running Home Assistant OS. Zigbee through a Connect ZBT-2, and the onboard radio is a Thread border router.</td>
+          </tr>
         </tbody>
       </table>
 
-      <h2>Architecture</h2>
+      <h2>How it fits together</h2>
       <p>
-        The homelab runs Docker with Traefik as the reverse proxy, providing automatic TLS via Let's Encrypt
-        and routing to internal services. Pi-hole handles DNS-level ad blocking for all devices on the network.
-        Homebridge bridges smart home accessories into Apple HomeKit. Tailscale provides secure remote access
-        without exposing services to the public internet.
+        Each service on the NAS is its own Docker Compose stack, and Traefik routes a hostname to each one.
+        Remote access goes through Tailscale rather than open ports. DNS has two Pi-holes, the primary on the
+        Raspberry Pi and a secondary on the NAS, kept in sync by nebula-sync.
       </p>
+
+      <h2>The status panel</h2>
       <p>
-        The status data you see above is collected every 2 minutes by Bun pushers on normal Linux nodes
-        and a Rust add-on on Home Assistant Yellow, pushed to a Cloudflare D1 database, and served through
-        a Cloudflare Pages Function with edge caching. This page polls that same API every 30 seconds.
+        Every two minutes, a small Bun script on the NAS and the Pi, and a Rust add-on on the Home Assistant
+        Yellow, send CPU, memory, temperature, load and service health to this site. A Cloudflare Pages Function
+        stores the readings in D1 and serves them at <code>/api/status</code>, which the panel above polls every
+        30 seconds. The services listed are whatever the machines report, so the panel cannot drift from what is
+        actually running. A separate Cloudflare Worker watches the same database and sends me a Telegram alert
+        when every machine goes quiet at once, which usually means the internet at home is down.
       </p>
 
       <h2>Services</h2>
       <ul>
-        <li><strong>Traefik</strong> — reverse proxy with auto-TLS and Docker service discovery</li>
-        <li><strong>Pi-hole</strong> — DNS-level ad blocking for the whole network</li>
-        <li><strong>Homebridge</strong> — HomeKit bridge for smart home devices</li>
-        <li><strong>Tailscale</strong> — secure mesh VPN for remote access</li>
-        <li><strong>Immich</strong> — self-hosted photo and video backup</li>
-        <li><strong>Jellyfin</strong> — media server</li>
-        <li><strong>Suwayomi</strong> — self-hosted manga reader</li>
-        <li><strong>Paperless-ngx</strong> — document management and OCR</li>
-        <li><strong>Beszel</strong> — lightweight system monitoring</li>
+        <li><strong>Immich</strong>: photo and video backup</li>
+        <li><strong>Jellyfin</strong> and <strong>Navidrome</strong>: films, shows and music</li>
+        <li><strong>Suwayomi</strong> and <strong>Komga</strong>: manga</li>
+        <li><strong>Kiwix</strong>: offline wikis</li>
+        <li><strong>Forgejo</strong>: self-hosted Git</li>
+        <li><strong>Shlink</strong>: short links, on the Pi</li>
+        <li><strong>Beszel</strong> and <strong>Scrutiny</strong>: system and disk health</li>
+        <li><strong>Backrest</strong>: restic backups with a web UI</li>
+        <li><strong>Diun</strong>: alerts when a container image has an update</li>
       </ul>
 
-      <h2>Storage &amp; Backup</h2>
+      <h2>Storage and backups</h2>
       <p>
-        The NVMe SSD holds the OS, Docker volumes, and application data. Critical data
-        (Immich library, Paperless documents) is backed up nightly to an external USB drive
-        and optionally to Backblaze B2 via rclone.
-      </p>
-
-      <h2>Power &amp; Thermal</h2>
-      <p>
-        The Pi 5 idles around 4-5W and peaks under 15W with all services running. The
-        official active cooler keeps the CPU in the 40-55°C range under normal load.
-        Estimated monthly running cost is under S$3.
+        The NAS holds the data and the Docker volumes. Backrest runs two nightly restic backups: service config
+        and database dumps go to Cloudflare R2, and the Immich photo library goes to an SSD on my Mac mini, so
+        the photos have a copy off the NAS.
       </p>
     </section>
+
+    <HomelabTerminal v-model:open="terminalOpen" :homelab-status="status" />
   </article>
 </template>
 
@@ -123,5 +124,26 @@ h1 {
   to {
     stroke-dashoffset: 0;
   }
+}
+
+.terminal-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.terminal-hint:hover {
+  color: var(--ink);
+}
+
+.prose code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.9em;
 }
 </style>

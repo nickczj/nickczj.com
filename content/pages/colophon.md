@@ -1,7 +1,7 @@
 ---
 title: Colophon
 description: How nickczj.com is built — the stack, the choices, and the trade-offs.
-updated: 2026-11-22
+updated: 2026-11-27
 ---
 
 This site is built and deployed deliberately small. The goal is for the site itself to be a working showcase of the stack, not a generic portfolio shell.
@@ -15,8 +15,8 @@ This site is built and deployed deliberately small. The goal is for the site its
 - **Live data:** homelab status from D1, GitHub contributions via the GraphQL API, Spotify now-playing via OAuth, and weather from Open-Meteo.
 - **Images:** watch photos are processed locally with [sharp](https://sharp.pixelplumbing.com) (metadata stripped, AVIF + JPEG variants) and served from Cloudflare R2 at `media.nickczj.com`.
 - **Math:** KaTeX via `remark-math` and `rehype-katex` for the finance and technical write-ups.
-- **Styling:** Plain CSS. Shared shell styles live in `app/app.vue`; the homepage dashboard lives in `app/assets/home.css`. No Tailwind, no CSS-in-JS, no design system — the page count is small enough that a few hundred lines of CSS does the job.
-- **Type:** Inter for sans, JetBrains Mono for code, and Newsreader for serif headings. The homepage loads them from Google Fonts; everything else falls back to the system stack.
+- **Styling:** Plain CSS. Shared styles live in `app/app.vue` and the header, nav and footer in a Nuxt layout (`app/layouts/default.vue`). The homelab dashboard on `/projects/homelab` has its own scoped stylesheet, `app/assets/dashboard.css`. No Tailwind, no CSS-in-JS, no design system — the page count is small enough that a few hundred lines of CSS does the job.
+- **Type:** Inter for sans where it is installed, otherwise the system stack. The homelab dashboard loads JetBrains Mono from Google Fonts; no other page loads web fonts.
 
 ## Why these choices
 

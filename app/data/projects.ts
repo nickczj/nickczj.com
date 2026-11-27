@@ -15,11 +15,10 @@ export const projects: Project[] = [
   {
     slug: 'homelab',
     title: 'Homelab',
-    description: 'A Raspberry Pi 5 based homelab running Docker, Pi-hole, Homebridge, Tailscale, and various self-hosted services behind Traefik.',
+    description: 'Three always-on machines at home: a UGREEN NAS running Docker services behind Traefik, a Raspberry Pi 5 for Pi-hole DNS, and a Home Assistant Yellow for the smart home, reachable over Tailscale.',
     date: '2026-05-06',
     status: 'active',
-    techs: ['Raspberry Pi 5', 'Docker', 'Traefik', 'Tailscale', 'Pi-hole', 'Homebridge', 'Nginx'],
-    image: '/projects/homelab/rack.jpg',
+    techs: ['UGREEN NAS', 'Raspberry Pi 5', 'Home Assistant', 'Docker', 'Traefik', 'Tailscale', 'Pi-hole'],
     draft: false
   },
   {
@@ -29,7 +28,6 @@ export const projects: Project[] = [
     date: '2026-05-01',
     status: 'experimental',
     techs: ['Nuxt', 'TypeScript', 'LaTeX'],
-    image: '/projects/fire-finance-math/screenshot.png',
     draft: false
   },
   {
@@ -39,7 +37,6 @@ export const projects: Project[] = [
     date: '2026-04-15',
     status: 'active',
     techs: ['ESP32', 'ESPHome', 'C++', 'Home Assistant', 'E-Ink'],
-    image: '/projects/esp32-heltec/device.jpg',
     repo: 'https://github.com/nickczj/esphome-heltec-wireless-paper',
     draft: false
   },
@@ -50,7 +47,6 @@ export const projects: Project[] = [
     date: '2026-03-20',
     status: 'experimental',
     techs: ['ESP32', 'Spectra 6', 'E-Ink', 'KiCad', '3D Printing'],
-    image: '/projects/esp32-eink/prototype.jpg',
     draft: false
   }
 ]

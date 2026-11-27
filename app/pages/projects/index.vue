@@ -4,6 +4,7 @@ import '~/assets/projects.css'
 import { publishedProjects } from '~/data/projects'
 import ProjectCard from '~/components/projects/ProjectCard.vue'
 import ProjectFeature from '~/components/projects/ProjectFeature.vue'
+import GitHubActivity from '~/components/projects/GitHubActivity.vue'
 import HomelabTopologyCard from '~/components/projects/cards/HomelabTopologyCard.vue'
 import FireMathCard from '~/components/projects/cards/FireMathCard.vue'
 import HeltecTopologyCard from '~/components/projects/cards/HeltecTopologyCard.vue'
@@ -59,6 +60,8 @@ useSeoMeta({
     <div v-else class="empty-state">
       <p>No projects published yet.</p>
     </div>
+
+    <GitHubActivity />
   </section>
 </template>
 
