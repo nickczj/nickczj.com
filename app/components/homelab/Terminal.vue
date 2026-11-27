@@ -18,7 +18,8 @@ useDashboardFonts()
 const NAV = [
   { label: '~/home', href: '/' },
   ...SITE_NAV.map((item) => ({ label: item.label.toLowerCase(), href: item.to })),
-  { label: 'colophon', href: '/colophon' }
+  { label: 'colophon', href: '/colophon' },
+  { label: 'sitemap', href: '/sitemap' }
 ]
 
 type Line = { type: 'sys' | 'in' | 'out' | 'err'; text: string }

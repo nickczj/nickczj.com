@@ -19,6 +19,7 @@ import { CV_URL, SITE_NAV } from '~/data/site-nav'
 
     <footer class="site-footer">
       <NuxtLink to="/colophon">Colophon</NuxtLink>
+      <NuxtLink to="/sitemap">Site map</NuxtLink>
     </footer>
   </div>
 </template>

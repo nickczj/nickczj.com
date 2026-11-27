@@ -24,6 +24,9 @@ useSeoMeta({
       <a :href="CV_URL" target="_blank" rel="noopener">CV</a>
       <ThemeToggle />
     </nav>
+    <p class="home-footer">
+      <NuxtLink to="/sitemap">Site map</NuxtLink>
+    </p>
   </main>
 </template>
 
@@ -43,6 +46,21 @@ useSeoMeta({
   display: block;
   width: 100%;
   height: auto;
+}
+
+/* Matches the footer links on the other pages (.site-footer in app.vue). */
+.home-footer {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.home-footer a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.home-footer a:hover {
+  color: var(--link);
 }
 
 .home-nav {

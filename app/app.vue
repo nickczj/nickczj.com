@@ -140,6 +140,9 @@ a:hover {
 }
 
 .site-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
   width: min(100% - 2rem, 56rem);
   margin: 0 auto;
   padding: 1.5rem 0 2.5rem;

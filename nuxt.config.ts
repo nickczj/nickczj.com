@@ -101,7 +101,7 @@ export default defineNuxtConfig({
     prerender: {
       crawlLinks: true,
       ignore: [/^\/$/, /^\/projects/],
-      routes: ['/blog', '/now', '/uses', '/colophon', '/watches', '/watches/admired']
+      routes: ['/blog', '/now', '/uses', '/colophon', '/watches', '/watches/admired', '/sitemap', '/sitemap.xml']
     }
   }
 })
